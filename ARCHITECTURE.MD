@@ -4,7 +4,7 @@ This document answers one question:
 
 > **How does the system work?**
 
-It describes the technical architecture, component responsibilities, AI workflow, validation strategy, error handling and deployment direction.
+It describes the technical architecture, component responsibilities, AI workflow, validation strategy, persistence, error handling and deployment direction.
 
 ---
 
@@ -12,15 +12,33 @@ It describes the technical architecture, component responsibilities, AI workflow
 
 This project is a web-based AI application that helps a user tailor an existing CV to a specific job ad and prepare for a potential interview.
 
-The MVP uses a predefined structured CV profile already stored in the application. The user does not upload a CV in V1. The user provides job-related input through the frontend, and the system uses AI to generate a structured output containing:
+The MVP uses a predefined structured CV profile already stored in the application. The user does not upload a CV in V1.
+
+The user provides:
+
+- selected CV profile
+- job ad text
+- company name in the required format
+
+The system generates structured output containing:
 
 - role fit assessment
 - optimized CV suggestions
 - gap analysis
-- company research summary
+- company research
 - interview preparation material
 
-The application follows a validation-first workflow. AI output is not trusted automatically. It must be cleaned, parsed and validated before being shown to the user.
+The application follows a validation-first workflow.
+
+AI output is not trusted automatically. It must be cleaned, parsed and validated before being shown to the user or stored in the database.
+
+Firestore is used to store:
+
+- reusable company research
+- saved application results
+- tailored CV JSON versions
+- gap analysis
+- interview preparation material
 
 ---
 
@@ -33,9 +51,12 @@ The main components are:
 - **AI Layer**
 - **Research Layer**
 - **Validation Layer**
+- **Storage Layer**
 - **Logger**
-- **External APIs**
+- **External Services**
 - **Scheduler** _(future component)_
+
+---
 
 ## Frontend
 
@@ -44,13 +65,32 @@ The frontend is built with Streamlit.
 It is responsible for:
 
 - displaying the current CV profile
-- collecting job ad input
-- collecting company name
-- collecting optional company website URL
+- collecting job ad text
+- allowing the user to select an existing company
+- allowing the user to add a new company
+- validating the expected company name format
 - showing role fit results
-- showing optimized CV preview
-- showing company research and interview prep
+- showing the optimized CV preview
+- showing company research
+- showing interview preparation material
+- allowing section-level revision requests
 - allowing the user to print/save the final CV as PDF from the browser
+
+Existing companies are shown in a dropdown.
+
+If the company does not exist, the user enters it in this format:
+
+```text
+Company Name - ISO2 Country Code
+```
+
+Example:
+
+```text
+Bird - NL
+```
+
+---
 
 ## Backend
 
@@ -58,87 +98,231 @@ The backend is built with FastAPI.
 
 It is responsible for:
 
-- receiving validated frontend input
-- orchestrating the AI workflow
+- receiving frontend requests
+- validating input
+- loading the selected CV profile
+- checking Firestore for reusable data
+- deciding whether an AI call is required
 - preparing prompts
 - calling the AI layer
 - cleaning AI responses
 - validating structured JSON
 - handling retries
+- storing validated results
 - returning validated output to the frontend
 - logging workflow events
 
-FastAPI is used intentionally even though Streamlit could technically call the AI workflow directly. The reason is to keep the system modular and easier to extend later as an API-based service.
+FastAPI is used intentionally even though Streamlit could technically call the AI workflow directly.
+
+The reason is to:
+
+- separate frontend and backend responsibilities
+- create clear API contracts
+- allow future use of the workflow by another client
+- centralize validation, authentication, rate limiting and logging
+
+---
 
 ## AI Layer
 
-The AI layer is responsible for generating structured AI output based on:
+The AI layer is responsible for:
+
+- estimating role fit
+- generating CV optimization suggestions
+- generating gap analysis
+- generating company research when required
+- generating interview questions
+- generating suggested answer directions
+- revising selected sections based on user feedback
+
+The AI layer uses:
 
 - stored CV profile
 - job ad text
 - company name
-- optional company website URL
+- existing company research when available
 - system instructions
-- expected JSON schema
+- expected JSON schemas
 
-The AI layer must not freely rewrite the entire CV. It should only suggest changes to allowed CV sections and must not invent experience, employers, dates, education or certifications.
+The AI must not invent:
+
+- employers
+- employment dates
+- education
+- certifications
+- experience
+- achievements
+- unsupported tools or skills
+
+---
 
 ## Research Layer
 
-The research layer is responsible for collecting or generating company-related preparation material.
+The research layer is responsible for obtaining reusable company information.
 
-In the MVP, the primary source is the company name provided by the user. The optional company website URL can be used as additional context if available.
+It follows this logic:
 
-If online research or search grounding is available, the system may use it to generate:
+1. Check whether the company already exists in Firestore.
+2. Check whether the stored company research is valid and reusable.
+3. If valid research exists, reuse it.
+4. If no valid research exists, call Gemini with search grounding.
+5. Validate the returned company research.
+6. Store the validated result in Firestore.
+
+Company research may include:
 
 - company overview
 - products and services
 - industry context
+- customers or customer types
 - competitors
 - recent relevant news
-- Glassdoor-style summary based on available public information
+- publicly available employee sentiment
+- source information where available
 
-If enough information cannot be found, the app must clearly mark the section as limited instead of pretending that the data is complete.
+If enough reliable information cannot be found, the system must clearly mark the result as limited.
+
+---
 
 ## Validation Layer
 
-The validation layer is responsible for ensuring that AI output is usable by the application.
+The validation layer ensures that data is safe and usable.
+
+It validates:
+
+- user input
+- company name format
+- AI responses
+- stored Firestore documents
+- CV changes
+- revision results
 
 It checks:
 
 - whether a response exists
+- whether JSON can be extracted
 - whether JSON can be parsed
 - whether required keys exist
 - whether values have correct types
-- whether fields are non-empty where required
-- whether CV changes only touch allowed sections
-- whether forbidden fields remain unchanged
+- whether required fields are non-empty
+- whether allowed enum values are used
+- whether CV changes only affect allowed fields
+- whether forbidden CV fields remain unchanged
+- whether revision output only changes the selected section
+
+---
+
+## Storage Layer
+
+The storage layer uses Firebase Firestore.
+
+It is responsible for storing and retrieving structured application data.
+
+The MVP uses two collections:
+
+### `companies`
+
+Stores reusable company research.
+
+Example fields:
+
+- company key
+- display name
+- normalized company name
+- company research
+- products and services
+- competitors
+- recent news
+- employee sentiment
+- sources
+- generated timestamp
+- schema version
+- prompt version
+
+### `applications`
+
+Stores one record per processed application.
+
+Example fields:
+
+- profile ID
+- company key
+- job title
+- job ad text or hash
+- fit assessment
+- tailored CV
+- gap analysis
+- interview preparation
+- created timestamp
+- base CV version
+- schema version
+- prompt version
+- model version
+
+The storage layer allows the system to:
+
+- reuse company research
+- avoid unnecessary search calls
+- reopen saved tailored CV versions
+- reuse complete application results when the input is an exact match
+- support future direct PDF rendering
+
+Firestore access must go through the FastAPI backend.
+
+The Streamlit frontend must not access Firestore directly.
+
+---
 
 ## Logger
 
-The logger records important workflow events, failures and retries.
+The logger records important workflow events.
 
-It is used for debugging and development visibility, not for complex reporting.
+It records:
 
-## External APIs
+- workflow start and completion
+- AI call failures
+- cleaner failures
+- validation failures
+- retry attempts
+- Firestore cache hits
+- Firestore cache misses
+- Firestore read failures
+- Firestore write failures
+- company research refreshes
+
+The logger is used for debugging and development visibility.
+
+It is not intended for complex analytics or reporting.
+
+---
+
+## External Services
 
 The MVP depends on:
 
-- Gemini API for AI generation
-- optional search/grounding capability for company research if available
+- Gemini API
+- Gemini search grounding
+- Firebase Firestore
 
 Future versions may add:
 
 - job board APIs
-- CV parsing APIs
-- PDF generation services
+- CV parsing services
+- direct PDF generation services
 - email notification services
+
+---
 
 ## Scheduler
 
 The scheduler is not part of the MVP.
 
-It may be introduced in V3 to run periodic job searches and notify the user about suitable roles.
+It may be introduced in V3 to:
+
+- run periodic job searches
+- evaluate job fit
+- generate application preparation
+- notify the user about suitable positions
 
 ---
 
@@ -160,6 +344,7 @@ project/
 ├── api.py
 ├── config.py
 ├── logger.py
+├── db.py
 ├── streamlit/
 │   ├── app.py
 │   ├── cv_preview.py
@@ -183,9 +368,11 @@ project/
 
 - `.env` is used only locally and must not be committed.
 - `.env.example` is committed to show required environment variables.
-- CV data is stored as structured JSON for the MVP.
+- CV data is stored as structured JSON.
 - AI models and validation logic are separated from Streamlit UI logic.
 - FastAPI acts as the backend orchestration layer.
+- Firestore stores company research and application results.
+- The exact file structure may change during technical grooming.
 
 ---
 
@@ -193,214 +380,318 @@ project/
 
 ## Frontend
 
-Responsibility:
+### Responsibilities
 
 - collect user input
+- display existing company options
+- allow new company input
 - show processing state
 - display validated AI output
 - render CV preview
-- render interview preparation material
+- render company research
+- render interview preparation
+- allow section revision requests
+- support browser PDF export
 
-Inputs:
+### Inputs
 
-- selected stored CV profile
+- selected CV profile
 - job ad text
-- company name
-- optional company website URL
+- selected or newly entered company name
 
-Outputs:
+### Outputs
 
-- user request sent to backend
+- request sent to backend
+- rendered fit result
 - rendered CV preview
-- rendered interview prep page
+- rendered company research
+- rendered interview preparation
+
+---
 
 ## Backend
 
-Responsibility:
+### Responsibilities
 
-- receive request from frontend
-- validate basic input
-- build AI prompt
-- call AI workflow
-- clean AI response
-- validate AI response
-- return structured result
+- receive frontend request
+- validate input
+- load stored CV profile
+- check Firestore for existing company research
+- check Firestore for exact application match
+- return reusable stored data when appropriate
+- build AI prompts
+- call AI workflows
+- clean AI responses
+- validate AI responses
+- store validated results
+- return structured output
 
-Inputs:
+### Inputs
 
 - frontend request
 - stored CV profile
 - configuration
 - prompt instructions
+- Firestore data
 
-Outputs:
+### Outputs
 
 - validated workflow result
-- error response if workflow fails
+- stored application result
+- structured error response
+
+---
 
 ## AI Layer
 
-Responsibility:
+### Responsibilities
 
 - estimate role fit
-- generate CV optimization suggestions
+- optimize the CV
 - generate gap analysis
-- generate company research summary
-- generate interview questions and answer suggestions
+- generate company research when required
+- generate interview preparation
+- revise selected sections
 
-Inputs:
+### Inputs
 
 - CV profile
 - job ad text
+- company research
 - company name
-- optional website URL
 - prompt instructions
 - expected output schema
 
-Outputs:
+### Outputs
 
-- structured JSON response
+- structured JSON responses
+
+---
 
 ## Validation Layer
 
-Responsibility:
+### Responsibilities
 
 - reject invalid AI output
-- prevent unsafe or unsupported CV changes
-- ensure output can be rendered by the frontend
+- validate Firestore documents
+- prevent unsupported CV changes
+- ensure output can be rendered
+- ensure revisions only affect selected sections
 
-Inputs:
+### Inputs
 
 - raw or cleaned AI response
 - expected schema
 - original CV profile
+- stored data
 
-Outputs:
+### Outputs
 
-- validated AI result
+- validated result
 - validation error
+
+---
+
+## Storage Layer
+
+### Responsibilities
+
+- store company research
+- retrieve company research
+- store application records
+- retrieve exact matching application records
+- return hit, miss or invalid status
+
+### Inputs
+
+- company key
+- profile ID
+- job ad hash
+- application data
+- company research data
+
+### Outputs
+
+- company research record
+- application record
+- storage status
+
+---
 
 ## Logger
 
-Responsibility:
+### Responsibilities
 
-- record workflow start and completion
-- record AI call failures
+- record workflow events
+- record AI failures
 - record cleaner failures
 - record validation failures
 - record retry attempts
-
-## External APIs
-
-Responsibility:
-
-- provide AI generation
-- optionally provide company research through search/grounding
-- support future integrations
+- record Firestore operations
 
 ---
 
 # Data Flow
 
-1. User opens the Streamlit application.
-2. User selects or uses a predefined CV profile.
-3. User pastes the job ad text.
-4. User enters the company name.
-5. User optionally enters the company website URL.
-6. Frontend sends the request to the FastAPI backend.
-7. Backend validates basic input.
-8. Backend loads the stored CV profile.
-9. Backend builds the AI prompt using:
-   - CV profile
-   - job ad text
-   - company name
-   - optional company website URL
-   - system rules
-   - expected JSON structure
+1. The user opens the Streamlit application.
+2. The user selects a predefined CV profile.
+3. The user pastes the job ad text.
+4. The user selects an existing company from the dropdown.
+5. If the company does not exist, the user adds it using the required format.
+6. Streamlit sends the request to the FastAPI backend.
+7. The backend validates the input.
+8. The backend loads the selected CV profile.
+9. The backend checks Firestore for an exact matching application result.
+10. An exact match requires compatible:
+    - profile ID
+    - job ad hash
+    - schema version
+    - prompt version
 
-10. AI layer sends the request to Gemini.
-11. AI returns raw output.
-12. Cleaner extracts usable JSON.
-13. Validation layer checks structure, types, required fields and forbidden CV changes.
-14. If validation passes, backend returns structured output to frontend.
-15. Streamlit renders:
+11. If an exact application match exists, the backend returns it.
+12. If no exact application match exists, the backend checks the `companies` collection.
+13. If valid company research exists, it is reused.
+14. If company research does not exist or is not reusable:
+    - Gemini search grounding is called
+    - the response is cleaned
+    - the response is validated
+    - validated company research is stored in Firestore
 
-- fit assessment
-- CV preview
-- gap analysis
-- company research
-- interview prep
+15. The backend builds the main AI prompt using:
+    - CV profile
+    - job ad text
+    - company name
+    - company research
+    - system rules
+    - expected JSON structure
 
-16. User reviews the result.
-17. User can print/save the CV as PDF from the browser.
-18. If the user wants a specific section changed, a follow-up AI call can be triggered for that section only.
+16. Gemini generates the main workflow response.
+17. The response cleaner extracts usable JSON.
+18. The validation layer checks:
+    - structure
+    - types
+    - required fields
+    - fit behavior
+    - forbidden CV changes
+
+19. If validation passes, the backend stores the application result in Firestore.
+20. The backend returns the validated result to Streamlit.
+21. Streamlit renders:
+    - fit assessment
+    - CV preview
+    - gap analysis
+    - company research
+    - interview preparation
+
+22. The user reviews the result.
+23. The user may request a revision of one section.
+24. The backend runs the targeted revision workflow.
+25. Only the selected section is replaced.
+26. The user can print/save the CV as PDF from the browser.
 
 ---
 
-# AI Workflow
+# AI Workflows
 
-The system has two AI workflows.
+The system has three AI workflows.
 
-## 1. Main AI Workflow
+## 1. Conditional Company Research Workflow
 
-Purpose:
+### Purpose
 
-- assess role fit
-- generate CV optimization suggestions
-- generate gap analysis
-- generate company research
-- generate interview preparation material
+Generate reusable company research only when it is not already available.
 
-Input sent to AI:
+### Input
+
+- company name
+- research instructions
+- expected company research schema
+
+### Behavior
+
+- check Firestore first
+- reuse valid stored research
+- call Gemini search grounding only on cache miss
+- validate company research
+- store validated result
+
+### Expected Output
+
+- company overview
+- products and services
+- industry context
+- competitors
+- recent news
+- public employee sentiment
+- sources where available
+- warnings or limitations
+
+---
+
+## 2. Main Fit, CV and Interview Workflow
+
+### Purpose
+
+Generate the main application result.
+
+### Input
 
 - stored CV profile
 - job ad text
 - company name
-- optional company website URL
-- instructions about allowed and forbidden CV changes
-- required JSON output structure
+- company research
+- allowed and forbidden CV change rules
+- required JSON schema
 
-Expected output:
+### Expected Output
 
 - role fit assessment
 - user-facing fit explanation
-- CV patch or CV suggestions
+- tailored CV
 - gap analysis
-- company research summary
 - interview questions
-- suggested answers
+- suggested answer directions
 - warnings or limitations
 
-Behavior:
+### Behavior
 
-- If fit is strong or solid, AI generates CV suggestions normally.
-- If fit is stretch, AI generates suggestions but clearly warns about missing requirements.
-- If fit is poor, AI should recommend stopping. The user may still choose to generate anyway, but this is not the default path.
+- strong fit: generate the complete result
+- solid fit: generate the complete result and explain key improvements
+- stretch fit: generate the result with clear warnings and preparation advice
+- poor fit:
+  - stop CV tailoring
+  - do not generate a tailored CV
+  - return missing requirements
+  - return preparation recommendations
+  - do not provide an override in the MVP
 
-## 2. Follow-Up Revision Workflow
+---
 
-Purpose:
+## 3. Targeted Revision Workflow
 
-- revise one specific section based on user feedback
+### Purpose
 
-Input sent to AI:
+Revise one selected section based on user feedback.
+
+### Input
 
 - original CV profile
-- current AI output
+- current application result
 - selected section
 - user comment
 - original job ad context
 
-Expected output:
+### Expected Output
 
-- revised version of the selected section only
-- short explanation of what changed
+- revised selected section
+- short explanation of the change
 
-Behavior:
+### Behavior
 
-- AI must not regenerate the entire CV.
-- AI must only modify the section selected by the user.
-- The same validation rules still apply.
+- only the selected section may change
+- the complete CV must not be regenerated
+- the same validation and safety rules apply
+- the updated application result may be stored as a new version
 
 ---
 
@@ -416,6 +707,8 @@ Expected main models:
 - `CVPatch`
 - `GapAnalysis`
 - `CompanyResearch`
+- `CompanyRecord`
+- `ApplicationRecord`
 - `InterviewQuestion`
 - `InterviewPrep`
 - `AIWorkflowResult`
@@ -435,11 +728,28 @@ Before processing starts, the backend validates:
 - stored CV profile exists
 - job ad text is provided
 - company name is provided
-- company website URL is valid if provided
-
-Company website URL is optional.
+- company name follows the required format
+- country code contains two valid ISO2 letters
+- request payload size is acceptable
 
 Job ad URL parsing is out of scope for the MVP.
+
+---
+
+## Stored Data Validation
+
+Before reusing Firestore data, the backend validates:
+
+- required document fields exist
+- stored data matches the expected schema
+- schema version is supported
+- prompt version is compatible
+- company key matches the request
+- application hash matches the current input
+
+Invalid stored data must not be reused.
+
+---
 
 ## AI Response Validation
 
@@ -451,10 +761,12 @@ After AI responds, the backend validates:
 - required keys exist
 - values have correct data types
 - required strings are not empty
-- lists contain minimum expected items
+- lists contain the minimum expected number of items
 - allowed enum values are used
-- CV patch only touches allowed fields
+- CV changes only affect allowed fields
 - forbidden CV fields remain unchanged
+- poor-fit behavior follows the required rule
+- revision output only modifies the selected section
 
 Forbidden CV fields include:
 
@@ -464,44 +776,59 @@ Forbidden CV fields include:
 - employment dates
 - education
 - certifications
-- factual achievements not present in the original CV
+- factual achievements unsupported by the original CV
+
+---
 
 ## Retry Strategy
 
-The workflow can be attempted up to 3 times.
+The AI workflow can be attempted up to three times.
 
-Retry can be triggered by:
+Retry may be triggered by:
 
 - AI API failure
-- response cleaner failure
+- empty response
+- cleaner failure
 - JSON parsing failure
 - validation failure
 
-If all 3 attempts fail, the workflow stops safely and the user receives an error message.
+If all three attempts fail:
+
+- processing stops
+- the failure is logged
+- the user receives a clear error message
+
+Firestore retry handling is separate from AI retry handling.
+
+A Firestore failure must not automatically trigger another Gemini call.
 
 ---
 
 # Error Handling
 
-Expected failure cases:
+Expected failure cases include:
 
-- AI API request fails
-- AI returns empty response
-- AI returns invalid JSON
-- cleaner cannot extract JSON
-- validation fails
-- research data is incomplete
-- required user input is missing
+- missing user input
+- invalid company name format
+- AI API failure
+- empty AI response
+- invalid JSON
+- cleaner failure
+- validation failure
+- incomplete research
+- Firestore read failure
+- Firestore write failure
+- malformed stored document
+- incompatible stored schema version
 
 Handling strategy:
 
 - log the failure
-- retry up to 3 times where appropriate
+- retry only where appropriate
 - stop safely after repeated failure
+- do not display unvalidated output
 - show a clear high-level error to the user
-- do not display unvalidated AI output as final result
-
-The user should not see raw technical errors.
+- avoid showing raw technical errors
 
 ---
 
@@ -523,14 +850,21 @@ API access is protected with an API key passed in the request header.
 
 Rate limiting can be applied through SlowAPI.
 
+Firestore credentials must only exist in the backend environment.
+
+The frontend must not access Firestore directly.
+
 Security principles:
 
 - do not expose API keys
+- do not expose Firestore credentials
 - do not commit private CV data unless intentionally using demo data
+- use anonymized or demo data for public deployments
 - validate all user input
 - validate all AI output
+- validate stored database documents
 - prevent AI from modifying forbidden CV fields
-- log failures without exposing sensitive data unnecessarily
+- avoid logging sensitive data unnecessarily
 
 ---
 
@@ -538,14 +872,14 @@ Security principles:
 
 Initial development runs locally.
 
-Possible deployment options:
+Possible deployment options include:
 
 - local machine
 - home server laptop
 - Render
 - Streamlit Community Cloud
 
-For portfolio presentation, a live demo may be deployed, but this will be decided later.
+For portfolio presentation, a live demo may be deployed later.
 
 Deployment direction:
 
@@ -553,6 +887,7 @@ Deployment direction:
 - GitHub as source control
 - environment variables for secrets
 - simple deployment before advanced infrastructure
+- Firestore accessed only through the backend
 
 ---
 
@@ -562,14 +897,19 @@ The main bottleneck is the AI workflow because the application depends on AI res
 
 The MVP is not designed for high traffic.
 
+Firestore reduces unnecessary AI calls by reusing:
+
+- company research
+- exact matching application results
+
 Future scalability improvements may include:
 
-- better caching
+- improved caching rules
 - background processing
 - queue-based execution
 - separate frontend and backend deployment
-- database persistence
 - user accounts
+- user-facing history dashboard
 - scheduled job search workflows
 
 The current architecture is intentionally simple but modular enough to support future extension.
@@ -578,68 +918,102 @@ The current architecture is intentionally simple but modular enough to support f
 
 # Architectural Tradeoffs
 
-The following compromises were accepted for the MVP:
+The following compromises were accepted for the MVP.
 
-## Static CV profile instead of CV upload
+## Static CV Profile Instead of CV Upload
 
-Reason:
+### Reason
 
 - faster implementation
 - cleaner validation
-- easier demo flow
 - fewer parsing problems
+- easier testing
 
-Tradeoff:
+### Tradeoff
 
-- less flexible for multiple users
+- less flexible for new users
+- CV profiles must be prepared in advance
 
-## Pasted job ad text instead of job ad URL
+---
 
-Reason:
+## Pasted Job Ad Text Instead of Job Ad URL
+
+### Reason
 
 - avoids scraping issues
-- avoids LinkedIn access problems
-- gives the AI clean input
+- avoids login restrictions
+- provides clean input
 
-Tradeoff:
+### Tradeoff
 
 - user must copy and paste the job ad manually
 
-## Browser print/save as PDF instead of direct PDF generation
+---
 
-Reason:
+## Browser Print/Save as PDF Instead of Direct PDF Generation
+
+### Reason
 
 - avoids PDF rendering complexity
-- easier MVP delivery
-- reliable enough for demo use
+- allows faster MVP delivery
+- remains usable for the main workflow
 
-Tradeoff:
+### Tradeoff
 
-- less polished than built-in PDF export
+- less control over layout
+- manual browser action required
+- browser-specific differences may exist
 
-## FastAPI backend instead of Streamlit-only app
+---
 
-Reason:
+## FastAPI Backend Instead of Streamlit-Only Application
 
-- cleaner separation of frontend and backend
-- easier future API usage
-- better place for validation, logging and rate limiting
+### Reason
 
-Tradeoff:
+- clearer separation of responsibilities
+- reusable API contracts
+- centralized validation, authentication and logging
+- easier future integration
 
-- more project complexity than a pure Streamlit app
+### Tradeoff
 
-## No local model fallback in MVP
+- additional service
+- more deployment complexity
+- more potential failure points
 
-Reason:
+---
 
-- CV and interview preparation require high-quality language output
-- local model setup would add complexity
-- fallback quality may be inconsistent
+## No AI Provider Fallback in MVP
 
-Tradeoff:
+### Reason
 
-- app depends on external AI API availability
+- consistent output behavior
+- simpler architecture
+- easier debugging and validation
+- avoids provider-specific differences
+
+### Tradeoff
+
+- Gemini remains a single point of failure
+
+---
+
+## Firestore Persistence
+
+### Reason
+
+- reuse company research
+- reduce unnecessary AI calls
+- save tailored CV versions
+- save application results
+- support future PDF rendering
+
+### Tradeoff
+
+- additional service dependency
+- database schema and versioning are required
+- Firestore errors must be handled
+- more backend complexity
 
 ---
 
@@ -648,15 +1022,17 @@ Tradeoff:
 Potential future improvements:
 
 1. Upload CV as PDF or Word document.
-2. Parse LinkedIn profile if technically and legally possible.
-3. Accept job ad URL instead of pasted job ad text.
+2. Parse a LinkedIn profile if technically and legally possible.
+3. Accept a job ad URL instead of pasted text.
 4. Generate PDF directly inside the application.
-5. Add user accounts and saved CV versions.
-6. Add job board API integration.
-7. Schedule weekly job search based on real fit instead of job title alerts.
-8. Add email notifications.
-9. Add optional local model / privacy mode.
-10. Add multiple CV templates.
+5. Add user accounts.
+6. Add a user-facing application history dashboard.
+7. Add side-by-side CV version comparison.
+8. Add job board API integration.
+9. Schedule weekly job searches based on role fit.
+10. Add email notifications.
+11. Add optional local model or privacy mode.
+12. Add multiple CV templates.
 
 ---
 
@@ -666,6 +1042,8 @@ Potential future improvements:
 - Reliability is preferred over speed and quantity.
 - User control is preferred over complete automation.
 - AI should assist, not replace the user.
-- Every component should have clear responsibility.
+- Every component should have a clear responsibility.
 - AI output must be validated before it is trusted.
-- MVP should stay simple, but not structurally messy.
+- Stored data must be validated before it is reused.
+- MVP complexity must be justified by meaningful product or learning value.
+- The MVP should remain simple, but not structurally messy.

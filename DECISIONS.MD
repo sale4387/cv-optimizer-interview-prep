@@ -312,7 +312,7 @@ Review this decision when a reliable, legal and sufficiently simple job ad URL i
 
 ---
 
-## DECISION-003 — Company Name Required, Company URL Optional
+## DECISION-003 — Structured Company Identifier Without Company URL
 
 ### Status
 
@@ -320,98 +320,133 @@ Accepted
 
 ### Context
 
-The application needs to identify the target company in order to generate:
+The application needs to identify the target company reliably in order to:
 
-- company background
-- products and services
-- competitors
-- recent news
-- interview preparation material
+- retrieve reusable company research
+- distinguish companies with similar names
+- connect application records with the correct company
+- support consistent Firestore keys
 
-Although the company name may already exist inside the job ad, relying only on AI extraction could lead to incorrect identification.
+Relying only on company extraction from the job ad could produce incorrect matches.
 
-A separate input structure was required.
+A company website URL was previously considered as optional supporting input, but it would introduce an additional field without being required for the main MVP workflow.
 
 ### Options Considered
 
-1. **Extract the company name automatically from the job ad**
+1. **Extract the company automatically from the job ad**
 
    Pros:
-   - fewer fields for the user
+   - fewer required user actions
    - smoother input flow
 
    Cons:
-   - the company may be identified incorrectly
-   - job ads may hide or omit the company name
-   - additional extraction and validation are required
+   - the company may be extracted incorrectly
+   - some job ads hide or omit the company name
+   - the result still requires user confirmation
+   - unreliable identification would affect Firestore reuse
 
-2. **Require both company name and company URL**
-
-   Pros:
-   - provides more precise research context
-   - reduces ambiguity between companies with similar names
-
-   Cons:
-   - the user may not know the correct website
-   - the URL may not provide useful information
-   - an unnecessary field may block the workflow
-
-3. **Require company name and keep company URL optional**
+2. **Require company name and optionally accept a company website URL**
 
    Pros:
-   - provides stable company identification
-   - improves prompt quality and validation
-   - allows additional disambiguation when the URL is available
-   - keeps the required input simple
+   - the URL may help distinguish companies
+   - additional research context may be available
 
    Cons:
-   - adds one required user action
-   - users may still enter incorrect information
+   - adds another input field
+   - the user may provide the wrong website
+   - the website may not provide useful information
+   - the URL is not required for Firestore identification
+
+3. **Use a structured company label containing company name and country code**
+
+   Pros:
+   - simple user input
+   - reduces ambiguity
+   - supports consistent database keys
+   - works without requiring a website URL
+   - allows existing companies to be selected from stored records
+
+   Cons:
+   - requires the user to provide the correct country code
+   - company names still require normalization
+   - different legal entities may still need future disambiguation
 
 ### Decision
 
-The company name will be a required input.
+The MVP will use one required company field in this format:
 
-The company website URL will be optional.
+```text
+Company Name - ISO2 Country Code
+```
+
+Example:
+
+```text
+Bird - NL
+```
+
+The frontend will:
+
+- show existing companies in a dropdown
+- provide an `Add new company` option
+- allow the user to enter a new structured company label
+
+The backend will validate the format and generate a normalized company key, for example:
+
+```text
+bird-nl
+```
+
+A company website URL will not be part of the MVP input.
 
 ### Reasoning
 
-A separate company name field provides:
+The structured company label provides enough information to:
 
-- more reliable input
-- easier validation
-- better company research
-- less dependence on AI extraction
-- cleaner prompt construction
+- identify the company consistently
+- reduce ambiguity
+- support Firestore lookup
+- create reusable company research records
+- keep the frontend input simple
 
-The optional URL may improve research quality or help distinguish between companies with similar names.
+Removing the optional website URL avoids a field that does not provide enough MVP value to justify additional validation and workflow complexity.
 
 ### Tradeoffs
 
-The user must enter information that may already appear in the job ad.
+The user must provide the correct ISO2 country code.
 
-Incorrect company information may produce incorrect research results.
+Companies operating through multiple legal entities may require more precise identification in the future.
 
-Company information may still be limited even when the correct name is provided.
+The system cannot rely on a website URL for disambiguation.
 
 ### Consequences
 
 The frontend requires:
 
-- company name
-- optional company website URL
-- job ad text
+- an existing-company dropdown
+- an `Add new company` option
+- one structured company input field
 
-The backend validates the company name separately from the job ad.
+The backend requires:
 
-The research workflow can use the optional website URL as supporting context.
+- format validation
+- ISO2 country-code validation
+- company-name normalization
+- normalized company-key generation
+- Firestore lookup by company key
+
+The research workflow uses the validated company identifier rather than a user-provided website URL.
 
 ### Review Later
 
-Review this decision if company extraction from job ads becomes reliable enough to automatically populate the field for user confirmation.
+Review this decision if:
+
+- different legal entities require stronger identification
+- automatic company extraction becomes reliable
+- a company website becomes necessary for research quality
+- external users require a more flexible company search experience
 
 ---
-
 ## DECISION-004 — FastAPI Backend Instead of Streamlit-Only Application
 
 ### Status
@@ -955,17 +990,56 @@ This is the third personal AI portfolio project after earlier projects that focu
 - deployment
 - debugging
 
-The core programming patterns required for this MVP are already familiar from previous projects.
+The main programming patterns required for this MVP are already familiar from previous projects.
 
-Repeating the same implementation-heavy workflow would provide less additional learning value than focusing on a different professional skill set.
+Repeating the same implementation-heavy workflow would provide less learning value than practicing stronger ownership of:
 
-The project is therefore intentionally used to practice AI Product Engineer and Technical PM ownership.
+- product definition
+- task planning
+- AI workflow design
+- acceptance criteria
+- testing
+- technical review
+
+The project is therefore intentionally used to practice AI Product Engineer and Technical PM responsibilities.
 
 ### Options Considered
 
-1. Build the project primarily by manually writing all code again.
-2. Let AI generate most of the code without strong product ownership.
-3. Lead the project as product owner, technical PM, tester and reviewer while using AI assistance for implementation.
+1. **Manually write nearly all implementation code**
+
+   Pros:
+   - maximum direct coding practice
+   - detailed familiarity with every implementation step
+
+   Cons:
+   - repeats patterns already practiced
+   - provides less new product and delivery experience
+   - increases delivery time
+
+2. **Allow AI to generate most of the project without strong owner involvement**
+
+   Pros:
+   - fastest implementation
+   - limited manual effort
+
+   Cons:
+   - weak product ownership
+   - limited understanding of technical decisions
+   - higher risk of unreviewed or inconsistent implementation
+   - low portfolio credibility
+
+3. **Lead the project as product owner and technical reviewer while using AI for implementation support**
+
+   Pros:
+   - stronger product and delivery practice
+   - clear ownership of scope and quality
+   - efficient use of existing technical knowledge
+   - realistic AI-assisted development workflow
+
+   Cons:
+   - less manual coding than in earlier projects
+   - requires disciplined review and testing
+   - poor task quality would directly affect implementation quality
 
 ### Decision
 
@@ -981,73 +1055,91 @@ The project owner will lead the project as:
 AI assistance may be used for:
 
 - code generation
+- technical subtasks
+- implementation details
 - refactoring
-- implementation support
 - debugging support
 
 The project owner remains responsible for:
 
 - product scope
 - architecture direction
+- major technical decisions
 - AI workflow design
-- documentation
-- task definition
+- task goals
+- dependencies
 - acceptance criteria
-- testing
+- measurements
+- test expectations
+- understanding the purpose and behavior of each implemented component
 - final approval
+
+AI assistance is responsible for:
+
+- proposing technical subtasks
+- defining implementation details
+- generating code when requested
+- identifying technical edge cases
+- helping diagnose implementation failures
 
 ### Reasoning
 
-The project is intended to demonstrate not only that a working application can be built, but that an AI product can be:
+The project should demonstrate that an AI product can be:
 
 - defined
 - scoped
 - structured
+- implemented
 - validated
 - tested
 - delivered
 
 Previous projects already covered many required implementation patterns.
 
-The higher-value learning goal in this project is to practice guiding AI-assisted development effectively.
+The higher-value learning goal is to practice guiding AI-assisted development without transferring product responsibility to the AI.
 
 ### Tradeoffs
 
-The project owner will write less implementation code manually than in earlier projects.
+The project owner will manually write less implementation code than in earlier projects.
 
-The tradeoff is accepted because this project focuses on:
+This is accepted because the project focuses more heavily on:
 
 - product thinking
 - technical specification
 - AI workflow design
 - validation strategy
-- QA
+- quality assurance
 - human-in-the-loop UX
 - structured documentation
 - final product acceptance
+
+The approach only remains credible if generated implementation is reviewed, understood and tested.
 
 ### Consequences
 
 Documentation and task quality become central project outputs.
 
-AI-generated code must still be:
+Each task must clearly define:
+
+- why the task exists
+- what must be true when it is complete
+- how completion will be tested
+
+AI-generated code must be:
 
 - reviewed
 - understood
 - tested
 - integrated intentionally
 
-The owner remains accountable for the final product even when code is generated with AI assistance.
+The project owner remains accountable for the final product.
 
 ### Review Later
 
-No review is currently required.
-
-The decision may be reconsidered if the project introduces a technical area that provides meaningful new hands-on development value.
+Review this decision if the project introduces a technical area that provides meaningful new hands-on development value or if AI-generated implementation cannot be reviewed reliably.
 
 ---
-
-## DECISION-010 — One Main AI Call with Targeted Follow-Up Revisions
+## DECISION-010 — Separate Company Research, Main Application and Targeted Revision Workflows
 
 ### Status
 
@@ -1055,7 +1147,7 @@ Accepted
 
 ### Context
 
-The application needs to generate several connected outputs:
+The application needs to produce several connected outputs:
 
 - role fit assessment
 - optimized CV
@@ -1063,109 +1155,131 @@ The application needs to generate several connected outputs:
 - company research
 - interview preparation
 
-These outputs use the same:
+Company research can be reused across multiple applications to the same company, while the remaining outputs depend on the specific:
 
 - CV profile
 - job ad
-- company information
-- product rules
+- role
+- application context
 
-A decision was required whether to generate them through separate AI calls or one combined workflow.
+A single large AI call would repeat company research and increase response size, cost and validation risk.
+
+The workflow also needs section-level revisions without regenerating accepted content.
 
 ### Options Considered
 
-1. **Use a separate AI call for every output**
+1. **Use one AI call for the entire workflow**
 
    Pros:
-   - smaller response models
-   - simpler prompts per section
-   - failures may affect only one section
+   - one request
+   - one initial response
+   - shared context
+
+   Cons:
+   - large and complex output
+   - company research is repeated unnecessarily
+   - failure affects every output
+   - difficult to cache or reuse company data
+
+2. **Use a separate AI call for every output section**
+
+   Pros:
+   - smaller prompts and schemas
+   - failures affect fewer sections
+   - easier section-specific testing
 
    Cons:
    - repeated context
    - higher API usage
-   - increased processing time
+   - longer processing time
    - possible inconsistency between outputs
 
-2. **Use one main AI call for all outputs**
+3. **Use a conditional company research workflow, one main application workflow and targeted revision calls**
 
    Pros:
-   - consistent context
-   - lower API usage
-   - simpler initial user flow
+   - company research can be reused
+   - the main result remains internally consistent
+   - API calls are avoided when stored data is available
+   - revisions only affect the selected section
+   - response contracts remain manageable
 
    Cons:
-   - large and complex response
-   - higher validation risk
-   - failure affects the complete workflow
-
-3. **Use one main AI call and targeted follow-up calls**
-
-   Pros:
-   - consistent initial result
-   - lower repeated API usage
-   - allows focused user corrections
-   - accepted sections do not need regeneration
-
-   Cons:
-   - requires both complete and partial response models
-   - revision logic must be section-specific
+   - multiple workflow types must be implemented
+   - stored research must be validated
+   - orchestration becomes more complex
+   - several response models are required
 
 ### Decision
 
-The application will use one main AI call to produce the initial complete result.
+The MVP will use three AI workflows:
 
-A follow-up AI call will only be made when the user requests a revision of a specific section.
+1. **Conditional Company Research Workflow**
+   - checks Firestore first
+   - calls Gemini search grounding only when valid reusable research is unavailable
+   - validates and stores company research
 
-The follow-up call must return only the revised section and must not regenerate the complete result.
+2. **Main Fit, CV and Interview Workflow**
+   - uses the CV profile, job ad and prepared company research
+   - generates fit assessment, tailored CV, gap analysis and interview preparation
+   - stops CV tailoring when fit is poor
+
+3. **Targeted Revision Workflow**
+   - runs only when the user requests a change
+   - revises only the selected section
 
 ### Reasoning
 
-This approach:
+This structure separates reusable company knowledge from application-specific output.
 
-- avoids repeating the same context across multiple calls
-- reduces API usage
-- reduces processing time
-- keeps the initial output internally consistent
-- allows targeted improvements
-- avoids regenerating accepted content
+It:
+
+- reduces unnecessary AI calls
+- supports Firestore persistence
+- limits the size of the main response
+- improves validation clarity
+- preserves consistency between fit, CV and interview preparation
+- supports section-level user control
 
 ### Tradeoffs
 
-The main AI response requires a large and complex JSON structure.
+The backend must orchestrate three workflow types.
 
-This increases the risk of:
+The project requires:
 
-- incomplete output
-- invalid JSON
-- validation failure
-- longer response time
+- multiple Pydantic response models
+- separate prompts
+- separate validation rules
+- Firestore lookup logic
+- version compatibility checks
+- more detailed failure handling
 
-The risks are accepted and managed through validation and retry logic.
+The additional complexity is accepted because it creates meaningful reuse and reliability value.
 
 ### Consequences
 
 The system requires:
 
-- one complete workflow result model
-- section-specific revision request models
-- section-specific revision response models
-- validation for complete and partial results
-- frontend controls for selecting a section
-- user comment input
-- replacement of only the revised section
+- a company research request and result model
+- a main application request and result model
+- revision request and result models
+- separate validation functions
+- company-research cache-hit and cache-miss handling
+- main workflow integration with stored research
+- targeted section replacement logic
+
+Company research is no longer generated inside every main application call.
 
 ### Review Later
 
 Review this decision if:
 
-- the main response becomes too large or unreliable
-- different sections require different models
-- different sections require substantially different prompts
-- splitting the workflow improves quality without excessive cost or inconsistency
+- company research is too unreliable to reuse
+- the main application response remains too large
+- interview preparation requires a separate model or workflow
+- splitting the main workflow improves quality without excessive inconsistency
+- provider capabilities make a different orchestration pattern more reliable
 
 ---
-
 ## DECISION-011 — User Review and Section-Level Control
 
 ### Status
@@ -1282,7 +1396,323 @@ Review this decision if:
 - users need side-by-side version comparison
 - automatic approval becomes useful for low-risk cosmetic changes
 
+## DECISION-012 — Complete the CV Optimization Workflow Before Adding Supporting Features
+
+### Status
+
+Accepted
+
+### Context
+
+The planned main AI workflow includes several outputs:
+
+- role fit assessment
+- optimized CV
+- company research
+- interview preparation
+- browser-based PDF export
+
+Developing and testing all outputs at the same time would make it harder to identify problems and validate whether the core product value works.
+
+CV optimization is the central product feature. Company research and interview preparation provide additional value but are not required to prove that the main CV workflow works.
+
+Browser Print / Save as PDF is also part of the MVP, but formatting problems should not block development of the remaining product features.
+
+### Options Considered
+
+1. **Develop the complete AI workflow and all outputs at the same time**
+
+   Pros:
+   - final workflow is built immediately
+   - fewer temporary models and intermediate versions
+
+   Cons:
+   - larger and more difficult initial implementation
+   - harder debugging
+   - unclear which component caused a failure
+   - core product value is tested later
+
+2. **Complete CV optimization first, including fully polished PDF export**
+
+   Pros:
+   - the complete CV feature is finalized before expansion
+   - export quality is resolved early
+
+   Cons:
+   - browser-specific formatting issues may delay unrelated features
+   - excessive time may be spent polishing output before validating the complete product
+
+3. **Complete the main CV optimization workflow first, then add supporting features without allowing browser PDF quality to block progress**
+
+   Pros:
+   - validates the core product early
+   - creates a clear implementation sequence
+   - simplifies testing and debugging
+   - allows company research and interview preparation to be added incrementally
+   - prevents non-critical PDF formatting problems from blocking development
+
+   Cons:
+   - intermediate versions will not contain the complete product
+   - some models and prompts may need to be expanded later
+   - PDF quality may remain temporarily below the desired standard
+
+### Decision
+
+Development will first complete the core CV optimization flow:
+
+- stored CV profile
+- job and company input
+- role fit assessment
+- CV optimization
+- validation
+- result rendering
+- section-level revision
+
+Company research and interview preparation will be added after the core CV workflow is functional and tested.
+
+Browser Print / Save as PDF will be implemented as part of the CV workflow, but imperfect PDF formatting will not block development of later features if:
+
+- the document can be saved successfully
+- the content is complete
+- the output remains readable and usable
+
+PDF styling may be improved later, or the decision to use browser export may be reviewed in favor of direct PDF generation.
+
+### Reasoning
+
+This approach validates the main product value as early as possible.
+
+It allows the team to:
+
+- test CV optimization independently
+- identify prompt and validation problems earlier
+- reduce the size of the first AI response
+- establish stable data contracts before expanding them
+- add company research and interview preparation to an already functioning system
+
+Treating PDF polish as non-blocking prevents a secondary presentation issue from delaying higher-value functionality.
+
+### Tradeoffs
+
+The first working version will not contain all planned MVP features.
+
+The main AI contract may need to be expanded after the CV workflow is already functional.
+
+Browser-generated PDF output may temporarily have:
+
+- imperfect page breaks
+- browser-specific differences
+- minor layout problems
+- less polished formatting than direct PDF generation
+
+These limitations are accepted as long as the document remains readable and usable.
+
+### Consequences
+
+The project task order will be changed so that:
+
+1. the CV data model and input flow are completed
+2. the main fit and CV optimization workflow is implemented
+3. CV results and section revisions are tested
+4. company research is added
+5. interview preparation is added
+6. the full AI response model is integrated and retested
+
+PDF export will have two quality levels:
+
+- **minimum acceptable:** the complete CV can be saved and remains readable
+- **desired quality:** professional A4 layout with reliable page breaks and formatting
+
+Failure to reach the desired quality will create a follow-up improvement task but will not automatically block the next product feature.
+
+### Review Later
+
+Review this decision when:
+
+- the core CV workflow is stable
+- browser export produces consistently poor results
+- PDF formatting significantly reduces real usability
+- direct PDF generation becomes easier than continued browser-specific fixes
+- all supporting MVP features are integrated and final product polish begins
+
+## DECISION-013 — Firestore Persistence for Company Research and Application Results
+
+### Status
+
+Accepted
+
+### Context
+
+The system produces structured outputs that have value beyond a single session.
+
+Without persistent storage:
+
+- company research would be generated repeatedly
+- validated application results could not be reopened
+- tailored CV JSON versions would be lost
+- future direct PDF generation would require rerunning the AI workflow
+- repeated calls would increase cost and validation risk
+
+The MVP does not include user accounts, but it supports a limited number of predefined CV profiles.
+
+A persistent storage approach was required that provides meaningful reuse without introducing a complete account and permissions system.
+
+### Options Considered
+
+1. **Do not store workflow results**
+
+   Pros:
+   - simplest architecture
+   - no external database dependency
+   - no database schema or credentials
+
+   Cons:
+   - every workflow must run again
+   - company research is repeatedly generated
+   - previous tailored CV versions are lost
+   - no foundation for later PDF rendering or history features
+
+2. **Use temporary in-memory or local caching**
+
+   Pros:
+   - simpler than an external database
+   - can reduce repeated calls during one runtime session
+
+   Cons:
+   - data is lost when the application restarts
+   - difficult to share between frontend, backend and deployments
+   - unreliable as permanent storage
+   - limited portfolio and product value
+
+3. **Use Firebase Firestore as persistent storage**
+
+   Pros:
+   - persistent structured storage
+   - suitable for JSON-like documents
+   - supports reuse across sessions
+   - already familiar from previous projects
+   - available at low or no cost for MVP usage
+
+   Cons:
+   - introduces an external service
+   - requires credentials and access control
+   - requires document models and versioning
+   - adds read/write failure cases
+
+### Decision
+
+The MVP will use Firebase Firestore as permanent storage for two collections:
+
+### `companies`
+
+Stores reusable company research and related metadata.
+
+### `applications`
+
+Stores one structured result per processed application, including:
+
+- profile ID
+- company key
+- job title
+- job ad text or hash
+- fit assessment
+- tailored CV JSON
+- gap analysis
+- interview preparation
+- creation timestamp
+- base CV version
+- schema version
+- prompt version
+- model version where useful
+
+A complete application result may only be reused when the relevant inputs and version metadata are compatible.
+
+Firestore access will only occur through the FastAPI backend.
+
+The Streamlit frontend will not access Firestore directly.
+
+The MVP will not include:
+
+- user accounts
+- a permissions system
+- a full history-management dashboard
+
+### Reasoning
+
+Firestore provides meaningful product value by enabling:
+
+- reuse of company research
+- fewer unnecessary grounded-search calls
+- storage of tailored CV JSON versions
+- reopening validated application results
+- future direct PDF rendering from stored data
+- future history and comparison features
+
+The database also provides learning value through:
+
+- persistence design
+- document validation
+- version compatibility
+- retrieval logic
+- safe failure handling
+
+The additional complexity is justified because the stored data is a reusable product asset rather than a temporary cache.
+
+### Tradeoffs
+
+The system becomes dependent on another external service.
+
+The project requires additional work for:
+
+- credentials
+- document schemas
+- versioning
+- read and write operations
+- storage validation
+- failure handling
+- exact-match logic
+
+Without user accounts, stored records are not separated through a general multi-user permission model.
+
+This limitation is accepted for the controlled MVP.
+
+### Consequences
+
+The architecture requires:
+
+- a Firestore client in the backend
+- `companies` and `applications` collections
+- normalized company keys
+- application matching logic
+- job ad hashing or equivalent comparison
+- schema and prompt version metadata
+- validation of stored documents before reuse
+- logging of storage hits, misses and failures
+
+The frontend requires:
+
+- a dropdown of existing companies
+- an `Add new company` option
+
+The AI workflow changes so that:
+
+- company research runs only when reusable data is unavailable
+- the main application result is stored after validation
+- stored tailored CV JSON may later be rendered without another AI call
+
+### Review Later
+
+Review this decision if:
+
+- free-tier limits become restrictive
+- storage costs become material
+- user accounts are introduced
+- stronger multi-user permissions are required
+- another database better supports future query patterns
+- saved application history becomes a major product feature
+
 ---
+
 
 # Rejected Decisions
 
@@ -1294,22 +1724,26 @@ Rejected alternatives are documented inside each accepted decision.
 
 # Replaced Decisions
 
-No decisions have been replaced.
+No decisions have been formally replaced.
+
+DECISION-003 and DECISION-010 were updated before implementation to reflect the final MVP input, persistence and AI workflow design.
 
 ---
 
 # Decision Log
 
-| ID           | Title                                                        | Status   | Date | Notes                |
-| ------------ | ------------------------------------------------------------ | -------- | ---- | -------------------- |
-| DECISION-001 | Static Stored CV Profile for MVP                             | Accepted |      | MVP constraint       |
-| DECISION-002 | Pasted Job Ad Text Instead of Job Ad URL                     | Accepted |      | MVP constraint       |
-| DECISION-003 | Company Name Required, Company URL Optional                  | Accepted |      | Input design         |
-| DECISION-004 | FastAPI Backend Instead of Streamlit-Only Application        | Accepted |      | Architecture         |
-| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation   | Accepted |      | MVP export           |
-| DECISION-006 | No AI Provider Fallback in MVP                               | Accepted |      | Gemini only          |
-| DECISION-007 | AI Output Must Be JSON Validated Before Rendering            | Accepted |      | Reliability          |
-| DECISION-008 | Poor Fit Stops the Tailoring Workflow                        | Accepted |      | No MVP override      |
-| DECISION-009 | AI-Assisted Development Workflow and Product Ownership Focus | Accepted |      | Portfolio strategy   |
-| DECISION-010 | One Main AI Call with Targeted Follow-Up Revisions           | Accepted |      | AI workflow          |
-| DECISION-011 | User Review and Section-Level Control                        | Accepted |      | Human-in-the-loop UX |
+| ID           | Title                                                                       | Status   | Date | Notes                |
+| ------------ | --------------------------------------------------------------------------- | -------- | ---- | -------------------- |
+| DECISION-001 | Static Stored CV Profile for MVP                                            | Accepted |      | MVP constraint       |
+| DECISION-002 | Pasted Job Ad Text Instead of Job Ad URL                                    | Accepted |      | MVP constraint       |
+| DECISION-003 | Structured Company Identifier Without Company URL                           | Accepted |      | Input design         |
+| DECISION-004 | FastAPI Backend Instead of Streamlit-Only Application                       | Accepted |      | Architecture         |
+| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation                  | Accepted |      | MVP export           |
+| DECISION-006 | No AI Provider Fallback in MVP                                              | Accepted |      | Gemini only          |
+| DECISION-007 | AI Output Must Be JSON Validated Before Rendering                           | Accepted |      | Reliability          |
+| DECISION-008 | Poor Fit Stops the Tailoring Workflow                                       | Accepted |      | No MVP override      |
+| DECISION-009 | AI-Assisted Development Workflow and Product Ownership Focus                | Accepted |      | Portfolio strategy   |
+| DECISION-010 | Separate Company Research, Main Application and Targeted Revision Workflows  | Accepted |      | AI workflow          |
+| DECISION-011 | User Review and Section-Level Control                                       | Accepted |      | Human-in-the-loop UX |
+| DECISION-012 | Complete the CV Optimization Workflow Before Adding Supporting Features     | Accepted |      | Delivery sequence    |
+| DECISION-013 | Firestore Persistence for Company Research and Application Results           | Accepted |      | Persistence          |

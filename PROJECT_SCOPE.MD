@@ -55,8 +55,7 @@ The product should become a practical everyday tool for job seekers.
 
 - predefined structured CV profile already stored in the application
 - pasted job ad text
-- company name
-- optional company website URL
+- selected existing company or a new company entered in the required format
 
 ### Output
 
@@ -67,6 +66,7 @@ The product should become a practical everyday tool for job seekers.
 - company background
 - interview preparation material
 - likely interview questions with two or three suggested answers
+- saved structured application result
 
 ## V2 — Expanded Input and Export
 
@@ -121,8 +121,8 @@ No additional user groups are currently planned for the MVP.
 1. The user finds a job ad they are considering.
 2. The user opens the application.
 3. The application loads the predefined CV profile.
-4. The user enters the company name.
-5. The user optionally enters the company website URL.
+4. The user selects an existing company from the dropdown.
+5. If the company does not exist, the user enters a new company in the format `Company Name - ISO2 Country Code`.
 6. The user pastes the full job ad text.
 7. The user starts the workflow.
 8. The system evaluates the candidate’s fit for the role.
@@ -138,11 +138,12 @@ No additional user groups are currently planned for the MVP.
     - company research
     - interview preparation material
 
-11. The user reviews the complete result.
-12. The user may request a revision of a specific section by adding a comment.
-13. The system revises only the selected section.
-14. The user saves the CV and preparation material through the browser’s Print / Save as PDF functionality.
-15. The user applies for the job and uses the preparation material before the interview.
+11. The validated application result is stored for future reuse.
+12. The user reviews the complete result.
+13. The user may request a revision of a specific section by adding a comment.
+14. The system revises only the selected section.
+15. The user saves the CV and preparation material through the browser’s Print / Save as PDF functionality.
+16. The user applies for the job and uses the preparation material before the interview.
 
 ---
 
@@ -154,8 +155,14 @@ The MVP is expected to support the following capabilities.
 
 - predefined structured CV profile
 - pasted job ad text
-- separately entered company name
-- optional company website URL
+- selection of an existing company from stored records
+- entry of a new company in the format `Company Name - ISO2 Country Code`
+
+Example:
+
+```text
+Bird - NL
+```
 
 The user does not upload a CV in V1.
 
@@ -173,6 +180,8 @@ The fit result should explain:
 - which gaps may be reduced through preparation or learning
 
 If the role is classified as poor fit, CV tailoring stops.
+
+The user may still independently decide to apply, but the MVP will not generate a tailored CV for that application.
 
 ## CV Optimization
 
@@ -254,6 +263,36 @@ The user may select a specific section and enter a comment explaining what shoul
 
 A follow-up AI request should revise only the selected section and should not regenerate the complete result.
 
+## Data Storage and Reuse
+
+The MVP stores validated structured data in Firebase Firestore.
+
+Two types of records are stored:
+
+- reusable company research
+- complete application results
+
+Company research may be reused when the user applies for another position at the same company.
+
+A complete application result may only be reused when the relevant input and version metadata match, including:
+
+- selected CV profile
+- job ad content or hash
+- schema version
+- prompt version
+
+Each application record may contain:
+
+- fit assessment
+- tailored CV JSON
+- gap analysis
+- company reference
+- interview preparation
+- creation timestamp
+- relevant version metadata
+
+The MVP does not include user accounts or a full history-management dashboard.
+
 ## Export
 
 The application displays a print-friendly web version of the CV and interview preparation material.
@@ -267,9 +306,11 @@ The MVP includes:
 - validation of required user input
 - structured AI output
 - validation of AI response structure
+- validation of stored data before reuse
 - safe failure when output is invalid
 - limited retry handling
 - basic workflow logging
+- safe handling of storage failures
 
 ---
 
@@ -285,7 +326,7 @@ The following capabilities are intentionally excluded from the MVP:
 - direct application submission
 - direct PDF generation
 - user accounts
-- saved cloud history
+- user-facing application history dashboard
 - automated job alerts
 - scheduled job discovery
 - local AI model fallback
@@ -340,7 +381,9 @@ Company research and interview preparation should be specific to the company and
 
 The user reviews the complete result before export and may request targeted revisions.
 
-The AI assists the user but does not make final career or application decisions on the user’s behalf.
+The AI assists the user but does not make the final decision about whether the user should apply.
+
+A poor-fit result only prevents the application from generating a tailored CV; it does not prevent the user from applying independently.
 
 ---
 
@@ -354,6 +397,7 @@ The architecture should support:
 - structured CV data
 - structured AI output
 - validation before rendering
+- reuse of existing data when applicable
 - safe failure handling
 - future use of the backend as an independent API service
 - extension without redesigning the complete system
@@ -382,7 +426,7 @@ The AI must not:
 - present unsupported information as confirmed fact
 - produce a tailored CV when the fit is classified as poor
 
-AI output must be structured and validated before it is shown as a final result.
+AI output must be structured and validated before it is shown as a final result or stored for reuse.
 
 If the AI workflow fails repeatedly, processing stops and the user receives a clear error message.
 
@@ -393,17 +437,22 @@ If the AI workflow fails repeatedly, processing stops and the user receives a cl
 The MVP is considered complete when:
 
 - the application successfully loads a predefined structured CV profile
-- the user can submit company information and pasted job ad text
+- the user can select an existing company or add a new company in the required format
+- the user can submit pasted job ad text
 - the system produces a clear role fit assessment
 - a poor-fit result correctly stops CV tailoring
 - a poor-fit result still provides useful gap and preparation recommendations
 - a suitable role produces an optimized CV based only on available facts
 - protected CV fields remain unchanged
 - company research is generated or clearly marked as limited
+- stored company research can be reused for another application to the same company
+- a complete application result is reused only for an exact compatible input and version match
+- validated application results and tailored CV JSON versions are stored
 - interview questions and suggested answers are generated
 - the user can request revision of a specific section
 - only the selected section is revised
 - AI output is validated before rendering
+- stored data is validated before reuse
 - invalid output fails safely
 - the CV can be saved as PDF through the browser
 - the complete main workflow can be demonstrated without editing the code
@@ -435,7 +484,9 @@ Potential future expansion includes:
 - LinkedIn profile import if technically and legally possible
 - job ad URL processing
 - direct PDF generation
-- saved versions and user accounts
+- user accounts
+- user-facing application history dashboard
+- side-by-side CV version comparison
 - job board API integration
 - scheduled fit-based job discovery
 - email notifications

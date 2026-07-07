@@ -1,138 +1,160 @@
-# Project Name
+# CV Optimizer & Interview Prep Assistant
 
-CV otpimization and job interview prep tool
+A web-based AI tool that helps users tailor an existing CV to a specific job opportunity and prepare for a potential interview.
 
 ---
 
 # Overview
 
-This document answers one question:
+One CV cannot effectively represent a candidate for every possible job opportunity.
 
-> **What is this project and why does it exist?**
+Adjusting the presentation of previous experience for each job ad is time-consuming and adds additional stress to an already demanding job-search process.
 
-Questions to answer:
-
-- What problem does the project solve?
-- Who is it intended for?
-- What makes it different from similar solutions?
+The CV Optimizer & Interview Prep Assistant aims to provide a tailored CV and interview preparation materials approximately ten minutes after the user finds a relevant job ad.
 
 ---
 
-# Features
+# Planned Features
 
-Questions to answer:
+Development has not started yet. The following features are planned for the MVP:
 
-- What are the main features?
-- What can the user currently do?
-- Which features are already implemented?
-- Which features are planned but not yet available?
-
-Example format:
-
-- Feature 1
-- Feature 2
-- Feature 3
+- predefined structured CV rendered as a web page
+- role fit assessment
+- poor-fit workflow stop with clear explanation
+- CV optimization based only on existing experience
+- gap analysis and preparation recommendations
+- company research
+- likely interview questions
+- two or three suggested answer directions per question
+- section-level revisions based on user feedback
+- browser Print / Save as PDF export
+- Firestore firebase
 
 ---
 
 # Screenshots / Demo
 
-Questions to answer:
+Screenshots and a live demo are not yet available because features implementation has not started.
 
-- Are there screenshots?
-- Is there a demo video?
-- Is there a live deployment?
-- Is there a GIF showing the workflow?
+They will be added when the main MVP workflow is functional.
 
 ---
 
-# Technology Stack
-
-Questions to answer:
-
-- Which programming language is used?
-- Which frameworks are used?
-- Which AI provider/model is used?
-- Which databases or cloud services are used?
-- Which deployment technologies are used?
-
-Example:
+# Planned Technology Stack
 
 - Python
 - FastAPI
 - Streamlit
+- Pydantic
+- Gemini API
 - Docker
 - Firebase
-- OpenAI
-- ...
 
 ---
 
-# Project Structure
+# Planned Project Structure
 
-This section should provide only a high-level overview.
+```text
+project/
+├── .env
+├── .env.example
+├── .gitignore
+├── README.md
+├── PROJECT_SCOPE.md
+├── ARCHITECTURE.md
+├── PROJECT_BOARD.md
+├── DECISIONS.md
+├── requirements.txt
+├── api.py
+├── config.py
+├── logger.py
+├── db.py
+├── streamlit/
+│   ├── app.py
+│   ├── cv_preview.py
+│   ├── interview_prep_view.py
+│   └── components.py
+├── cv_data/
+│   ├── cv_sale.json
+│   └── cv_svetlana.json
+├── ai/
+│   ├── models.py
+│   ├── ai_client.py
+│   ├── prompts.py
+│   ├── workflow.py
+│   ├── cleaner.py
+│   └── validation.py
+└── tests/
+    └── manual_test_cases.md
+```
 
-Questions to answer:
-
-- What are the main folders?
-- What is the responsibility of each folder?
-- Where are the backend, frontend and configuration files located?
+The structure may be adjusted during task planning and implementation.
 
 ---
 
 # Quick Start
 
-Questions to answer:
-
-- How does someone run the project?
-- Which prerequisites are required?
-- Which commands should be executed?
+Setup and run instructions will be added when MVP implementation begins.
 
 ---
 
 # Current Project Status
 
-Questions to answer:
+The project is currently in the planning and documentation phase.
 
-- Is the project in development?
-- Is it MVP?
-- Is it production ready?
-- Which major milestones have already been completed?
+Completed planning work includes:
+
+- project scope
+- architecture direction
+- core product and technical decisions
+
+Implementation has not started yet.
 
 ---
 
 # Roadmap
 
-Questions to answer:
+## V1 — Controlled MVP
 
-- What are the next major improvements?
-- Which features are planned?
-- Which ideas are intentionally postponed?
+- predefined structured CV
+- pasted job ad text
+- company name input
+- role fit assessment
+- CV tailoring
+- gap analysis
+- company research
+- interview preparation
+- section-level revisions
+- browser PDF export
+- Firestore Firebase persistance
 
-Keep this section short.
+## V2 — Expanded Input and Export
+
+- PDF and Word CV upload
+- automatic CV parsing
+- job ad URL processing
+- direct PDF generation
+
+## V3 — Job Discovery
+
+- job board API integration
+- scheduled role searches
+- fit-based job alerts
+- application preparation notifications
 
 ---
 
 # Documentation
 
-Questions to answer:
-
-- Which additional project documents exist?
-- Where should developers start reading?
-
-Example:
-
-- PROJECT_SCOPE.md
-- ARCHITECTURE.md
-- PROJECT_BOARD.md
-- DECISIONS.md
+- [Project Scope](PROJECT_SCOPE.md)
+- [Architecture](ARCHITECTURE.md)
+- [Project Board](PROJECT_BOARD.md)
+- [Decisions](DECISIONS.md)
 
 ---
 
 # License
 
-Questions to answer:
+This project is currently intended for personal portfolio use.
 
-- Which license is used?
-- Is this a personal portfolio project?
-- Is commercial usage allowed?
+No software license has been selected yet.

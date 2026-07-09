@@ -1127,43 +1127,6 @@ Questions to answer:
 - Who or what is blocking progress?
 - What still needs to be tested?
 
-## TASK-003 — Implement FastAPI Backend Foundation, Configuration and Logging
-
-### Status
-
-In Progress
-
-### Goal
-
-This task should produce the necessary technical foundation for the rest of the project.
-
-### Description
-
-The following will be implemented:
-
-- FastAPI backend foundation
-- `config.py` containing the main application configuration
-- basic logging logic
-
-### Acceptance Criteria
-
-- [ ] `api.py` created and FastAPI application initialized
-- [ ] Root endpoint created
-- [ ] `logger.py` created
-- [ ] Logging added to the root endpoint
-- [ ] `config.py` created and imported successfully
-
-### Measurements
-
-- Application starts without import or runtime errors.
-- Root endpoint returns the expected response.
-- Request to the root endpoint creates the expected log entry.
-
-### Test Cases
-
-- [ ] Normal flow — user starts the FastAPI application from the terminal and the root endpoint returns the expected response.
-- [ ] Invalid endpoint — request to an undefined endpoint returns `404 Not Found`.
-
 ---
 
 # Review
@@ -1376,6 +1339,71 @@ TASK-001 must be completed first.
 - This task includes only the first CV profile.
 - Svetlana’s CV and profile selection are not included.
 - Final PDF styling can be improved in a later task if the document is already readable and usable.
+
+## TASK-003 — Implement FastAPI Backend Foundation, Configuration and Logging
+
+### Status
+
+Done
+
+### Goal
+
+This task should produce the necessary technical foundation for the rest of the project.
+
+### Description
+
+The following will be implemented:
+
+- FastAPI backend foundation
+- `config.py` containing the main application configuration
+- basic logging logic
+- root endpoint for confirming that the backend is running
+
+### Dependencies
+
+TASK-002 must be completed first.
+
+### Subtasks
+
+- [x] **3.1** Add FastAPI and Uvicorn to `requirements.txt` and install them.
+- [x] **3.2** Create `config.py` with the initial application settings.
+- [x] **3.3** Create `logger.py` and configure basic application logging.
+- [x] **3.4** Initialize the FastAPI application in `api.py`.
+- [x] **3.5** Create the root endpoint.
+- [x] **3.6** Add logging to application startup and the root endpoint.
+- [x] **3.7** Confirm that `config.py` and `logger.py` can be imported successfully.
+- [x] **3.8** Run the backend and complete the defined test cases.
+
+### Acceptance Criteria
+
+- [ ] `api.py` is created and the FastAPI application is initialized.
+- [ ] Root endpoint is created.
+- [ ] `config.py` is created and imported successfully.
+- [ ] `logger.py` is created and imported successfully.
+- [ ] Application startup is logged.
+- [ ] Requests to the root endpoint are logged.
+- [ ] The backend starts without import or runtime errors.
+- [ ] Undefined endpoints return `404 Not Found`.
+
+### Measurements
+
+- Application starts without import or runtime errors.
+- Root endpoint returns the expected response.
+- Request to the root endpoint creates the expected log entry.
+- Application startup creates the expected log entry.
+- Invalid endpoint returns `404 Not Found`.
+
+### Test Cases
+
+- [x] Normal flow — user starts the FastAPI application from the terminal and the root endpoint returns the expected response.
+- [x] Normal flow — application startup and root request are logged.
+- [x] Invalid endpoint — request to an undefined endpoint returns `404 Not Found`.
+- [x] Import test — `config.py`, `logger.py` and `api.py` import without errors.
+
+### Notes
+
+- API authentication, request contracts and rate limiting belong to TASK-004.
+- Advanced logging configuration and external monitoring are outside this task.
 
 ---
 

@@ -1414,7 +1414,7 @@ Checklist:
 # Task Diagram
 
 ```mermaid
-graph TD;
+flowchart TD;
     Task-001-->Task-002;
     Task-002-->Task-003;
     Task-003-->Task-004;

@@ -2,3 +2,5 @@ streamlit
 pydantic
 fastapi
 uvicorn
+slowapi
+pydantic-settings

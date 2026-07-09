@@ -38,72 +38,6 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-## TASK-004 — Define API Request Contracts and Protect Backend Endpoints
-
-### Status
-
-Backlog
-
-### Goal
-
-Ensure the stability and security of the application by standardizing API requests and applying a protective layer.
-
-### Description
-
-With this task, we will define the request contract for each planned protected endpoint.
-
-Furthermore, we will use an API key to protect access to the backend and apply rate limiting to prevent request flooding.
-
-### Dependencies
-
-TASK-003 must be completed first.
-
-### Subtasks
-
-- [ ] Define Pydantic request models for the planned protected endpoints.
-- [ ] Add request validation to reject missing or invalid fields.
-- [ ] Add API key configuration through environment variables.
-- [ ] Create reusable API key authentication logic.
-- [ ] Apply API key protection to protected endpoints.
-- [ ] Add rate-limiting configuration.
-- [ ] Apply rate limiting to protected endpoints.
-- [ ] Return structured error responses for authentication, validation and rate-limit failures.
-- [ ] Add logging for rejected authentication and rate-limit requests.
-- [ ] Confirm that secrets are not hardcoded or committed to Git.
-
-### Acceptance Criteria
-
-- [ ] Each planned protected endpoint has a defined request contract.
-- [ ] Requests with an invalid contract are rejected.
-- [ ] Protected endpoints require a valid API key.
-- [ ] The API key is stored securely through environment variables.
-- [ ] The API key is not hardcoded or committed to Git.
-- [ ] Rate limiting is applied to protected endpoints.
-- [ ] Missing or invalid API keys return an access-denied response.
-- [ ] Exceeding the rate limit returns a clear rate-limit response.
-
-### Measurements
-
-- Valid requests are accepted.
-- Invalid request payloads are rejected with a validation error.
-- Missing or invalid API keys are rejected.
-- A valid API key allows access.
-- Requests exceeding the configured limit are rejected.
-- API secrets do not exist in tracked repository files.
-
-### Test Cases
-
-- [ ] Normal flow — a request with a valid payload and valid API key is accepted.
-- [ ] Invalid payload — a request that does not match the request contract is rejected.
-- [ ] Missing API key — access is denied.
-- [ ] Invalid API key — access is denied.
-- [ ] Rate limit exceeded — additional requests are rejected with a rate-limit error.
-
-### Notes
-
-- Root or health-check endpoints may remain unprotected if required for deployment monitoring.
-- Exact rate limits will be agreed during technical implementation.
-
 ## TASK-005 — Integrate Gemini Client, Prompt Configuration and Retry Logic
 
 ### Status
@@ -1404,6 +1338,72 @@ TASK-002 must be completed first.
 
 - API authentication, request contracts and rate limiting belong to TASK-004.
 - Advanced logging configuration and external monitoring are outside this task.
+
+## TASK-004 — Define API Request Contracts and Protect Backend Endpoints
+
+### Status
+
+Done
+
+### Goal
+
+Ensure the stability and security of the application by standardizing API requests and applying a protective layer.
+
+### Description
+
+With this task, we will define the request contract for each planned protected endpoint.
+
+Furthermore, we will use an API key to protect access to the backend and apply rate limiting to prevent request flooding.
+
+### Dependencies
+
+TASK-003 must be completed first.
+
+### Subtasks
+
+- [x] Define Pydantic request models for the planned protected endpoints.
+- [x] Add request validation to reject missing or invalid fields.
+- [x] Add API key configuration through environment variables.
+- [x] Create reusable API key authentication logic.
+- [x] Apply API key protection to protected endpoints.
+- [x] Add rate-limiting configuration.
+- [x] Apply rate limiting to protected endpoints.
+- [x] Return structured error responses for authentication, validation and rate-limit failures.
+- [x] Add logging for rejected authentication and rate-limit requests.
+- [x] Confirm that secrets are not hardcoded or committed to Git.
+
+### Acceptance Criteria
+
+- [ ] Each planned protected endpoint has a defined request contract.
+- [ ] Requests with an invalid contract are rejected.
+- [ ] Protected endpoints require a valid API key.
+- [ ] The API key is stored securely through environment variables.
+- [ ] The API key is not hardcoded or committed to Git.
+- [ ] Rate limiting is applied to protected endpoints.
+- [ ] Missing or invalid API keys return an access-denied response.
+- [ ] Exceeding the rate limit returns a clear rate-limit response.
+
+### Measurements
+
+- Valid requests are accepted.
+- Invalid request payloads are rejected with a validation error.
+- Missing or invalid API keys are rejected.
+- A valid API key allows access.
+- Requests exceeding the configured limit are rejected.
+- API secrets do not exist in tracked repository files.
+
+### Test Cases
+
+- [ ] Normal flow — a request with a valid payload and valid API key is accepted.
+- [ ] Invalid payload — a request that does not match the request contract is rejected.
+- [ ] Missing API key — access is denied.
+- [ ] Invalid API key — access is denied.
+- [ ] Rate limit exceeded — additional requests are rejected with a rate-limit error.
+
+### Notes
+
+- Root or health-check endpoints may remain unprotected if required for deployment monitoring.
+- Exact rate limits will be agreed during technical implementation.
 
 ---
 

@@ -1248,11 +1248,70 @@ TASK-004 must be completed first.
 
 # This Sprint
 
+# In Progress
+
+Tasks currently being implemented.
+
+Questions to answer:
+
+- What is actively being built?
+- Who or what is blocking progress?
+- What still needs to be tested?
+
+---
+
+# Review
+
+Tasks that are implemented but not yet accepted.
+
+Questions to answer:
+
+- Does the feature work as expected?
+- Are acceptance criteria met?
+- Were edge cases tested?
+- Is documentation updated?
+
+---
+
+# Blocked
+
+Tasks that cannot continue until something is resolved.
+
+Questions to answer:
+
+- What is blocking the task?
+- Who needs to resolve it?
+- What decision or dependency is missing?
+
+---
+
+# On Hold
+
+Tasks intentionally paused or postponed.
+
+Questions to answer:
+
+- Why is this task paused?
+- What needs to happen before it continues?
+- Is this still part of the MVP?
+
+---
+
+# Done
+
+Completed and accepted tasks.
+
+Questions to answer:
+
+- What was delivered?
+- What was tested?
+- Are there any follow-up tasks?
+
 ## TASK-001 — Initialize Project Structure and Development Environment
 
 ### Status
 
-in Progress
+Done
 
 ### Goal
 
@@ -1345,72 +1404,13 @@ None — this is the first implementation task.
 - [x] Run `git status` and verify that excluded files are not tracked.
 - [x] Verify that `.env.example` is committed and `.env` is not committed.
 - [x] Commit a small documentation change and push it successfully.
-- [ ] Close and reopen the project and verify that the correct interpreter can be selected again.
+- [x] Close and reopen the project and verify that the correct interpreter can be selected again.
 
 ### Notes
 
 Dependencies should be added gradually as they become necessary.
 
 The project should not install speculative packages that are not yet used.
-
-# In Progress
-
-Tasks currently being implemented.
-
-Questions to answer:
-
-- What is actively being built?
-- Who or what is blocking progress?
-- What still needs to be tested?
-
----
-
-# Review
-
-Tasks that are implemented but not yet accepted.
-
-Questions to answer:
-
-- Does the feature work as expected?
-- Are acceptance criteria met?
-- Were edge cases tested?
-- Is documentation updated?
-
----
-
-# Blocked
-
-Tasks that cannot continue until something is resolved.
-
-Questions to answer:
-
-- What is blocking the task?
-- Who needs to resolve it?
-- What decision or dependency is missing?
-
----
-
-# On Hold
-
-Tasks intentionally paused or postponed.
-
-Questions to answer:
-
-- Why is this task paused?
-- What needs to happen before it continues?
-- Is this still part of the MVP?
-
----
-
-# Done
-
-Completed and accepted tasks.
-
-Questions to answer:
-
-- What was delivered?
-- What was tested?
-- Are there any follow-up tasks?
 
 ---
 

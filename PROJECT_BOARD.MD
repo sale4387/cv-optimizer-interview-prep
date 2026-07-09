@@ -38,137 +38,6 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-## TASK-002 — Define CV Data Model and Build Initial Streamlit Input Flow
-
-### Status
-
-Backlog
-
-### Goal
-
-This task produces the main CV input for the application.
-
-### Description
-
-The user’s CV will be examined and a decision will be made about which parts should be kept.
-
-The most appropriate CV format will be selected, the approved data will be stored as structured JSON, and the final output of the task will be an initial Streamlit CV page.
-
-### Dependencies
-
-TASK-001 must be completed first.
-
-### Subtasks
-
-- [ ] Review the current CV and agree on which sections and information will be kept.
-- [ ] Select an ATS-friendly CV format.
-- [ ] Define the structured JSON model for the CV.
-- [ ] Create and populate `cv_data/cv_sale.json`.
-- [ ] Create a validation model for the CV data.
-- [ ] Create the initial Streamlit page.
-- [ ] Load the CV data from the JSON file.
-- [ ] Render the agreed CV sections on the page.
-- [ ] Add basic screen and print styling.
-- [ ] Handle a missing or invalid CV data file.
-- [ ] Confirm that CV content is not hardcoded inside the Streamlit page.
-
-### Acceptance Criteria
-
-- [ ] CV format selected.
-- [ ] User’s CV examined and data selected.
-- [ ] CV data stored as structured JSON.
-- [ ] Static Streamlit page created.
-- [ ] Streamlit page loads the CV from the JSON file.
-
-### Measurements
-
-- Streamlit page exists.
-- Page can be launched via terminal.
-- Web version of the CV contains the agreed data.
-- When saved as PDF, the CV is a maximum of two pages long.
-
-### Test Cases
-
-- [ ] Normal flow — user runs the command via terminal and the webpage loads the complete CV from the JSON file.
-
-### Notes
-
-- This task includes only the first CV profile.
-- Svetlana’s CV and profile selection are not included.
-- Final PDF styling can be improved in a later task if the document is already readable and usable.
-
-### Goal
-
-This task should produce the necessary technical foundation for the rest of the project.
-
-### Status
-
-Backlog
-
-### Description
-
-The following will be implemented:
-
-- FastAPI backend foundation
-- `config.py` containing the main application configuration
-- basic logging logic
-
-### Acceptance Criteria
-
-- [ ] `api.py` created and FastAPI application initialized
-- [ ] Root endpoint created
-- [ ] `logger.py` created
-- [ ] Logging added to the root endpoint
-- [ ] `config.py` created and imported successfully
-
-### Measurements
-
-- Application starts without import or runtime errors.
-- Root endpoint returns the expected response.
-- Request to the root endpoint creates the expected log entry.
-
-### Test Cases
-
-- [ ] Normal flow — user starts the FastAPI application from the terminal and the root endpoint returns the expected response.
-- [ ] Invalid endpoint — request to an undefined endpoint returns `404 Not Found`.
-
-## TASK-003 — Implement FastAPI Backend Foundation, Configuration and Logging
-
-### Status
-
-Backlog
-
-### Goal
-
-This task should produce the necessary technical foundation for the rest of the project.
-
-### Description
-
-The following will be implemented:
-
-- FastAPI backend foundation
-- `config.py` containing the main application configuration
-- basic logging logic
-
-### Acceptance Criteria
-
-- [ ] `api.py` created and FastAPI application initialized
-- [ ] Root endpoint created
-- [ ] `logger.py` created
-- [ ] Logging added to the root endpoint
-- [ ] `config.py` created and imported successfully
-
-### Measurements
-
-- Application starts without import or runtime errors.
-- Root endpoint returns the expected response.
-- Request to the root endpoint creates the expected log entry.
-
-### Test Cases
-
-- [ ] Normal flow — user starts the FastAPI application from the terminal and the root endpoint returns the expected response.
-- [ ] Invalid endpoint — request to an undefined endpoint returns `404 Not Found`.
-
 ## TASK-004 — Define API Request Contracts and Protect Backend Endpoints
 
 ### Status
@@ -1258,6 +1127,43 @@ Questions to answer:
 - Who or what is blocking progress?
 - What still needs to be tested?
 
+## TASK-003 — Implement FastAPI Backend Foundation, Configuration and Logging
+
+### Status
+
+In Progress
+
+### Goal
+
+This task should produce the necessary technical foundation for the rest of the project.
+
+### Description
+
+The following will be implemented:
+
+- FastAPI backend foundation
+- `config.py` containing the main application configuration
+- basic logging logic
+
+### Acceptance Criteria
+
+- [ ] `api.py` created and FastAPI application initialized
+- [ ] Root endpoint created
+- [ ] `logger.py` created
+- [ ] Logging added to the root endpoint
+- [ ] `config.py` created and imported successfully
+
+### Measurements
+
+- Application starts without import or runtime errors.
+- Root endpoint returns the expected response.
+- Request to the root endpoint creates the expected log entry.
+
+### Test Cases
+
+- [ ] Normal flow — user starts the FastAPI application from the terminal and the root endpoint returns the expected response.
+- [ ] Invalid endpoint — request to an undefined endpoint returns `404 Not Found`.
+
 ---
 
 # Review
@@ -1411,6 +1317,65 @@ None — this is the first implementation task.
 Dependencies should be added gradually as they become necessary.
 
 The project should not install speculative packages that are not yet used.
+
+## TASK-002 — Define CV Data Model and Build Initial Streamlit Input Flow
+
+### Status
+
+Done
+
+### Goal
+
+This task produces the main CV input for the application.
+
+### Description
+
+The user’s CV will be examined and a decision will be made about which parts should be kept.
+
+The most appropriate CV format will be selected, the approved data will be stored as structured JSON, and the final output of the task will be an initial Streamlit CV page.
+
+### Dependencies
+
+TASK-001 must be completed first.
+
+### Subtasks
+
+- [x] Review the current CV and agree on which sections and information will be kept.
+- [x] Select an ATS-friendly CV format.
+- [x] Define the structured JSON model for the CV.
+- [x] Create and populate `cv_data/cv_sale.json`.
+- [x] Create a validation model for the CV data.
+- [x] Create the initial Streamlit page.
+- [x] Load the CV data from the JSON file.
+- [x] Render the agreed CV sections on the page.
+- [x] Add basic screen and print styling.
+- [x] Handle a missing or invalid CV data file.
+- [x] Confirm that CV content is not hardcoded inside the Streamlit page.
+
+### Acceptance Criteria
+
+- [ ] CV format selected.
+- [ ] User’s CV examined and data selected.
+- [ ] CV data stored as structured JSON.
+- [ ] Static Streamlit page created.
+- [ ] Streamlit page loads the CV from the JSON file.
+
+### Measurements
+
+- Streamlit page exists.
+- Page can be launched via terminal.
+- Web version of the CV contains the agreed data.
+- When saved as PDF, the CV is a maximum of two pages long.
+
+### Test Cases
+
+- [x] Normal flow — user runs the command via terminal and the webpage loads the complete CV from the JSON file.
+
+### Notes
+
+- This task includes only the first CV profile.
+- Svetlana’s CV and profile selection are not included.
+- Final PDF styling can be improved in a later task if the document is already readable and usable.
 
 ---
 

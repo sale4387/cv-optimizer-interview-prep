@@ -1,0 +1,296 @@
+{
+  "profile_id": "sale",
+  "cv_version": "1.0",
+  "personal_info": {
+    "full_name": "Aleksandar Marković",
+    "location": "Gouda, Netherlands",
+    "phone": "+31647129121",
+    "email": "aleksandar.m.markovic@gmail.com",
+    "linkedin": "https://linkedin.com/in/aleksandar-sale-markovic-89061062"
+  },
+  "professional_summary": "Commercial and product-oriented professional with more than 13 years of experience across CPaaS, messaging, mobile payments, connectivity, strategic partnerships and account management. Combines enterprise commercial experience with hands-on AI product development using Python, FastAPI, Streamlit, Pydantic, Firebase, Docker and Gemini. Experienced in leading cross-functional initiatives, managing high-value partnerships, improving revenue and cost performance, and translating business requirements into technical workflows.",
+  "core_skills": [
+    "Project Management",
+    "Product Ownership",
+    "Partnership Management",
+    "Account Management",
+    "Business Development",
+    "Negotiation",
+    "Pricing Strategy",
+    "RFP Management",
+    "Vendor Onboarding",
+    "Technical Integration",
+    "Risk and Compliance",
+    "Stakeholder Management",
+    "Market Intelligence",
+    "CPaaS",
+    "SaaS",
+    "SMS and Messaging",
+    "Mobile Payments"
+  ],
+  "professional_experience": [
+    {
+      "experience_id": "exp_001",
+      "employer": "Bird B.V.",
+      "job_title": "Account Manager - Connectivity",
+      "location": "Amsterdam / Gouda, Netherlands",
+      "start_date": "2023",
+      "end_date": "Present",
+      "responsibilities": [
+        "Manage and expand business with existing partners through upselling and cross-selling omnichannel services.",
+        "Manage the complete partner lifecycle from identification and pricing strategy through negotiation, contracting, technical integration, testing and go-live.",
+        "Work closely with routing and support teams to deliver tailored services and ensure smooth onboarding.",
+        "Manage top-tier customer performance and optimize commercial results.",
+        "Act as a business-side product owner supporting improvements to internal tools and reporting.",
+        "Provide market intelligence on industry trends, changes and competitor activity.",
+        "Represent the company at industry events and trade shows."
+      ],
+      "achievements": [
+        "Prepared and won RFPs worth approximately USD 2.2 million in quarterly margin."
+      ]
+    },
+    {
+      "experience_id": "exp_002",
+      "employer": "Twilio B.V.",
+      "job_title": "Strategic Business Developer",
+      "location": "Amsterdam, Netherlands",
+      "start_date": "2022",
+      "end_date": "2023",
+      "responsibilities": [
+        "Managed strategic negotiations, risk analysis and supplier agreements.",
+        "Oversaw approximately 180 wholesale partnerships.",
+        "Supported hiring, candidate screening and interviews.",
+        "Mentored six members of a newly formed wholesale team.",
+        "Managed the sales pipeline and defined pricing strategies.",
+        "Designed and implemented a framework for cost-effective management of long-tail providers."
+      ],
+      "achievements": [
+        "Negotiated and closed strategic deals valued at approximately USD 40 million.",
+        "Supported business growth to more than USD 78 million in annual revenue.",
+        "Improved the cost base by 18 percent year over year."
+      ]
+    },
+    {
+      "experience_id": "exp_003",
+      "employer": "Quiubas Mobile",
+      "job_title": "Routing and Product Manager",
+      "location": "Belgrade, Serbia",
+      "start_date": "2018",
+      "end_date": "2022",
+      "responsibilities": [
+        "Managed the end-to-end vendor onboarding process from discovery to production and risk management.",
+        "Created tailored solutions using commercial, market and technical expertise.",
+        "Managed technical setup based on commercial team requirements.",
+        "Designed and maintained customer pricing strategies to improve profitability and generate revenue.",
+        "Acted as the escalation point for advanced troubleshooting for key customer accounts.",
+        "Supported development of a new platform from the technical product-management side.",
+        "Created and maintained the master pricing document.",
+        "Supported due diligence during the company acquisition process."
+      ],
+      "achievements": [
+        "Helped Quiubas become a verified Google messaging partner.",
+        "Supported approximately USD 6 million in yearly revenue.",
+        "Contributed to the acquisition of Quiubas by Twilio for more than USD 20 million."
+      ]
+    },
+    {
+      "experience_id": "exp_004",
+      "employer": "TeleSign Corporation",
+      "job_title": "Global Compliance and Global Enablement Specialist",
+      "location": "Belgrade, Serbia",
+      "start_date": "2017",
+      "end_date": "2018",
+      "responsibilities": [
+        "Ensured customer use cases complied with legal and regulatory requirements.",
+        "Performed risk-management, content-monitoring and fraud-prevention activities.",
+        "Worked with the knowledge-engineering team on an AI tool for blocking phishing.",
+        "Worked with product and development teams as a stakeholder for number-leasing functionality.",
+        "Managed the enablement pipeline for top-tier customers preparing for go-live."
+      ],
+      "achievements": [
+        "Promoted into the role following a team reorganization after only a few months with the company."
+      ]
+    },
+    {
+      "experience_id": "exp_005",
+      "employer": "Infobip",
+      "job_title": "Mobile Payments Partner Onboarding Manager / Sales and Account Manager / Business Development Manager",
+      "location": "Belgrade, Serbia",
+      "start_date": "2013",
+      "end_date": "2017",
+      "responsibilities": [
+        "Managed merchant go-live projects from planning and coordination through closure.",
+        "Coordinated technical integration and testing with merchants and internal teams.",
+        "Supported sales teams during pre-sales activities.",
+        "Managed a knowledge base covering international regulations.",
+        "Helped merchants align services with local regulations while balancing compliance and commercial performance.",
+        "Mentored five newly onboarded team members.",
+        "Identified and developed mobile-payment and cross-selling opportunities.",
+        "Negotiated commercial offers and developed pricing strategies.",
+        "Prepared RFP responses and worked with legal and finance teams on contracts and billing.",
+        "Represented Infobip at events and trade shows."
+      ],
+      "achievements": [
+        "Prepared an RFP opportunity worth more than EUR 300,000 in monthly margin.",
+        "Helped grow monthly margin from approximately EUR 12,000 to EUR 100,000."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "project_id": "project_001",
+      "name": "Energy Usage Optimizer",
+      "status": "Functional MVP",
+      "description": "Home energy optimization platform that combines electricity consumption, solar production and weather data to identify suitable energy-use windows.",
+      "technologies": [
+        "Python",
+        "FastAPI",
+        "Streamlit",
+        "Pydantic",
+        "Firebase",
+        "Docker",
+        "APScheduler",
+        "REST APIs",
+        "Linux"
+      ],
+      "responsibilities": [
+        "Defined product scope, architecture and workflow requirements.",
+        "Integrated HomeWizard P1 meter, solar inverter and weather data.",
+        "Implemented structured data handling, validation, logging and retry logic.",
+        "Deployed the application on a self-hosted Ubuntu server using Docker Compose."
+      ],
+      "outcomes": [
+        "Created a working system for collecting and processing household energy data.",
+        "Built a reusable backend and scheduler architecture."
+      ]
+    },
+    {
+      "project_id": "project_002",
+      "name": "Decision Making Helper",
+      "status": "Completed project",
+      "description": "AI-assisted decision-support tool that structures options, criteria and recommendations into a controlled workflow.",
+      "technologies": ["Python", "Streamlit", "AI API", "JSON", "Pydantic"],
+      "responsibilities": [
+        "Designed the decision workflow and expected structured output.",
+        "Defined validation rules and human review steps.",
+        "Implemented AI-assisted recommendation logic."
+      ],
+      "outcomes": [
+        "Created a reusable structured approach for comparing alternatives and documenting decisions."
+      ]
+    },
+    {
+      "project_id": "project_003",
+      "name": "CV Optimizer and Interview Prep Assistant",
+      "status": "In progress",
+      "description": "AI application that evaluates role fit, tailors structured CV data and prepares company and interview materials.",
+      "technologies": [
+        "Python",
+        "FastAPI",
+        "Streamlit",
+        "Pydantic",
+        "Gemini",
+        "Firebase Firestore",
+        "Docker"
+      ],
+      "responsibilities": [
+        "Defined product scope, architecture and implementation roadmap.",
+        "Designed structured AI workflows and validation rules.",
+        "Defined Firestore persistence for company research and application versions.",
+        "Created task acceptance criteria, testing strategy and human review flow."
+      ],
+      "outcomes": [
+        "Produced complete product, architecture and delivery documentation.",
+        "Designed a validation-first AI workflow with targeted section revisions."
+      ]
+    },
+    {
+      "project_id": "project_004",
+      "name": "Dental Tourism Planner",
+      "status": "Planning",
+      "description": "AI-assisted planner designed to compare dental-treatment costs, travel expenses and potential total savings across destinations.",
+      "technologies": [
+        "AI workflow design",
+        "Data research",
+        "Product planning"
+      ],
+      "responsibilities": [
+        "Defined the product concept and target user problem.",
+        "Planned clinic research, comparison logic and total-cost calculations."
+      ],
+      "outcomes": []
+    },
+    {
+      "project_id": "project_005",
+      "name": "Phone Locker Quiz App",
+      "status": "Planning",
+      "description": "Consumer quiz application concept designed to support focused activities and reduced unnecessary phone use.",
+      "technologies": [
+        "Product design",
+        "Quiz workflow",
+        "Mobile-first UX planning"
+      ],
+      "responsibilities": [
+        "Defined the initial product concept and intended user flow."
+      ],
+      "outcomes": []
+    }
+  ],
+  "education": [
+    {
+      "education_id": "edu_001",
+      "institution": "Faculty of Organizational Sciences, Belgrade",
+      "qualification": "Bachelor's Degree in Management",
+      "start_date": "2006",
+      "end_date": "2010"
+    },
+    {
+      "education_id": "edu_002",
+      "institution": "Faculty of Organizational Sciences, Belgrade",
+      "qualification": "Master's Degree in Project Risk Management",
+      "start_date": "2010",
+      "end_date": "2011"
+    }
+  ],
+  "languages": [
+    {
+      "language": "Serbian",
+      "level": "Native"
+    },
+    {
+      "language": "English",
+      "level": "Advanced"
+    },
+    {
+      "language": "Dutch",
+      "level": "A2 completed, currently attending B1 course"
+    },
+    {
+      "language": "Spanish",
+      "level": "Conversational"
+    },
+    {
+      "language": "German",
+      "level": "Basic"
+    }
+  ],
+  "tools_and_technologies": [
+    "Python",
+    "FastAPI",
+    "Streamlit",
+    "Pydantic",
+    "Firebase",
+    "Firestore",
+    "Docker",
+    "Git",
+    "GitHub",
+    "Linux",
+    "Gemini API",
+    "REST APIs",
+    "JSON",
+    "Microsoft Office",
+    "Microsoft Project",
+    "Atlassian tools",
+    "Salesforce"
+  ]
+}

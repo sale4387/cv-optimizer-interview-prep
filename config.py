@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     backend_api_key: str = Field(validation_alias="BACKEND_API_KEY")
+    firebase_credentials_path: str = Field(
+    validation_alias="FIREBASE_CREDENTIALS_PATH",
+    )
     rate_limit: str = Field(
         default="10/minute",
         validation_alias="RATE_LIMIT",

@@ -4,3 +4,4 @@ fastapi
 uvicorn
 slowapi
 pydantic-settings
+firebase-admin

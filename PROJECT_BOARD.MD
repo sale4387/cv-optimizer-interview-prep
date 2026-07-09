@@ -682,220 +682,6 @@ Questions to answer:
 - Who or what is blocking progress?
 - What still needs to be tested?
 
-## TASK-006 — Define Core CV Optimization Response Models, Cleaner and Validation Rules
-
-### Status
-
-Backlog
-
-### Goal
-
-Define the minimum set of response models and validation rules required to ensure the integrity of the generated CV result.
-
-### Description
-
-With this task, we will define the expected JSON response format returned by the AI.
-
-Furthermore, we will define cleaner rules that remove Markdown code fences and surrounding text from the AI response.
-
-Finally, we will define validation rules that check:
-
-- required JSON keys
-- data types
-- allowed values
-- minimum and maximum lengths
-- consistency between the fit result and CV output
-
-Company research and interview preparation are not included in this task.
-
-### Dependencies
-
-TASK-005 must be completed first.
-
-### Expected JSON Format
-
-```json
-{
-  "fit_assessment": {
-    "level": "strong",
-    "explanation": "Explanation of the candidate's fit.",
-    "relevant_experience": [
-      "Relevant experience supported by the original CV."
-    ],
-    "missing_requirements": []
-  },
-  "cv_patch": {
-    "professional_summary": "Optimized professional summary.",
-    "experience_updates": [
-      {
-        "experience_id": "experience_001",
-        "suggested_job_title": null,
-        "responsibilities": [
-          "Optimized responsibility based on existing CV information."
-        ]
-      }
-    ],
-    "skills_to_highlight": ["Stakeholder management"]
-  },
-  "gap_analysis": {
-    "supported_requirements": ["Requirement supported by the CV."],
-    "reasonably_derived_requirements": [],
-    "unsupported_requirements": [
-      {
-        "requirement": "Unsupported requirement.",
-        "impact": "medium",
-        "preparation_recommendation": "Recommended preparation.",
-        "interview_guidance": "How to discuss the gap honestly."
-      }
-    ]
-  },
-  "warnings": []
-}
-```
-
-For a `poor` fit, `cv_patch` must be `null`.
-
-### Subtasks
-
-- [ ] Define Pydantic models for the core CV optimization response.
-- [ ] Define nested models for fit assessment, CV patch and gap analysis.
-- [ ] Configure models to reject unexpected fields.
-- [ ] Create `ai/cleaner.py`.
-- [ ] Remove Markdown JSON fences from AI responses.
-- [ ] Extract the JSON object from surrounding AI text.
-- [ ] Reject responses that do not contain valid JSON.
-- [ ] Create `ai/validation.py`.
-- [ ] Validate required keys, data types, enums and field lengths.
-- [ ] Validate that referenced experience IDs exist in the original CV.
-- [ ] Validate that highlighted skills are supported by the original CV.
-- [ ] Enforce the poor-fit rule.
-- [ ] Return all validation failure reasons.
-- [ ] Log cleaner failures.
-- [ ] Log validation failures with the complete list of reasons.
-
-### Acceptance Criteria
-
-- [ ] The JSON response format is defined and locked.
-- [ ] `ai/cleaner.py` is created.
-- [ ] `ai/validation.py` is created.
-- [ ] Cleaner returns pure parsed JSON without Markdown or surrounding text.
-- [ ] Cleaner does not invent or repair missing response content.
-- [ ] Cleaner failures are logged.
-- [ ] Validation failures are logged with all detected reasons.
-- [ ] Missing mandatory keys are rejected.
-- [ ] Incorrect data types are rejected.
-- [ ] Invalid field lengths are rejected.
-- [ ] Unsupported enum values are rejected.
-- [ ] Unexpected JSON fields are rejected.
-- [ ] A `poor` fit requires `cv_patch` to be `null`.
-- [ ] A `strong`, `solid` or `stretch` fit requires a valid `cv_patch`.
-
-### Validation Rules
-
-#### `fit_assessment`
-
-- `level`
-  - required string
-  - allowed values: `strong`, `solid`, `stretch`, `poor`
-- `explanation`
-  - required string
-  - 50–1,000 characters
-- `relevant_experience`
-  - required list of strings
-  - minimum one item
-  - each item: 10–500 characters
-- `missing_requirements`
-  - required list of strings
-  - may be empty
-  - each item: 5–300 characters
-
-#### `cv_patch`
-
-- required for `strong`, `solid` and `stretch`
-- must be `null` for `poor`
-- allowed keys:
-  - `professional_summary`
-  - `experience_updates`
-  - `skills_to_highlight`
-
-#### `professional_summary`
-
-- required string
-- 80–700 characters
-
-#### `experience_updates`
-
-- required list
-- minimum one item
-- each item must contain:
-  - valid `experience_id`
-  - optional `suggested_job_title`
-  - `responsibilities`
-- each responsibility:
-  - 20–400 characters
-- maximum six responsibilities per experience entry
-
-#### `skills_to_highlight`
-
-- required list of strings
-- minimum one item
-- maximum 30 items
-- each skill must be supported by the original CV
-
-#### `gap_analysis`
-
-Required keys:
-
-- `supported_requirements`
-- `reasonably_derived_requirements`
-- `unsupported_requirements`
-
-Each unsupported requirement must contain:
-
-- `requirement`
-  - required string
-  - minimum 5 characters
-- `impact`
-  - allowed values: `low`, `medium`, `high`
-- `preparation_recommendation`
-  - required string
-  - minimum 20 characters
-- `interview_guidance`
-  - required string
-  - minimum 20 characters
-
-#### `warnings`
-
-- required list of strings
-- may be empty
-- each warning: 5–300 characters
-
-### Measurements
-
-- Cleaner returns pure parsed JSON.
-- Valid responses pass validation.
-- Validation fails when any mandatory rule is not met.
-- Validation returns all detected failure reasons.
-- Cleaner and validation errors are logged.
-
-### Test Cases
-
-- [ ] Normal flow — a valid raw AI response is cleaned, parsed and validated successfully.
-- [ ] Markdown wrapper — valid JSON inside a Markdown code block is extracted successfully.
-- [ ] Surrounding text — valid JSON surrounded by AI text is extracted successfully.
-- [ ] Missing keys — validation fails and lists the missing keys.
-- [ ] Wrong type — validation fails when a field has an incorrect data type.
-- [ ] Wrong size — validation fails when a field does not meet length or list-size rules.
-- [ ] Invalid enum — validation fails for an unsupported fit level or impact value.
-- [ ] Poor-fit violation — validation fails when a poor-fit response contains a CV patch.
-- [ ] Cleaner failure — a response without valid JSON is rejected and logged.
-
-### Notes
-
-- The cleaner may remove wrappers and surrounding text, but it must not modify the JSON content.
-- Protected CV-field validation will compare the response with the original structured CV.
-- Company research and interview preparation models will be added in later tasks.
-
 ---
 
 # Review
@@ -1405,6 +1191,220 @@ TASK-018 must be completed first.
 - Prompt instructions belong in `ai/prompts.py`; technical settings belong in `config.py`.
 - This task does not yet generate or validate an optimized CV.
 - Model selection should be based on output quality, structured-output support, availability and expected cost.
+
+## TASK-006 — Define Core CV Optimization Response Models, Cleaner and Validation Rules
+
+### Status
+
+Done
+
+### Goal
+
+Define the minimum set of response models and validation rules required to ensure the integrity of the generated CV result.
+
+### Description
+
+With this task, we will define the expected JSON response format returned by the AI.
+
+Furthermore, we will define cleaner rules that remove Markdown code fences and surrounding text from the AI response.
+
+Finally, we will define validation rules that check:
+
+- required JSON keys
+- data types
+- allowed values
+- minimum and maximum lengths
+- consistency between the fit result and CV output
+
+Company research and interview preparation are not included in this task.
+
+### Dependencies
+
+TASK-005 must be completed first.
+
+### Expected JSON Format
+
+```json
+{
+  "fit_assessment": {
+    "level": "strong",
+    "explanation": "Explanation of the candidate's fit.",
+    "relevant_experience": [
+      "Relevant experience supported by the original CV."
+    ],
+    "missing_requirements": []
+  },
+  "cv_patch": {
+    "professional_summary": "Optimized professional summary.",
+    "experience_updates": [
+      {
+        "experience_id": "experience_001",
+        "suggested_job_title": null,
+        "responsibilities": [
+          "Optimized responsibility based on existing CV information."
+        ]
+      }
+    ],
+    "skills_to_highlight": ["Stakeholder management"]
+  },
+  "gap_analysis": {
+    "supported_requirements": ["Requirement supported by the CV."],
+    "reasonably_derived_requirements": [],
+    "unsupported_requirements": [
+      {
+        "requirement": "Unsupported requirement.",
+        "impact": "medium",
+        "preparation_recommendation": "Recommended preparation.",
+        "interview_guidance": "How to discuss the gap honestly."
+      }
+    ]
+  },
+  "warnings": []
+}
+```
+
+For a `poor` fit, `cv_patch` must be `null`.
+
+### Subtasks
+
+- [x] Define Pydantic models for the core CV optimization response.
+- [x] Define nested models for fit assessment, CV patch and gap analysis.
+- [x] Configure models to reject unexpected fields.
+- [x] Create `ai/cleaner.py`.
+- [x] Remove Markdown JSON fences from AI responses.
+- [x] Extract the JSON object from surrounding AI text.
+- [x] Reject responses that do not contain valid JSON.
+- [x] Create `ai/validation.py`.
+- [x] Validate required keys, data types, enums and field lengths.
+- [x] Validate that referenced experience IDs exist in the original CV.
+- [x] Validate that highlighted skills are supported by the original CV.
+- [x] Enforce the poor-fit rule.
+- [x] Return all validation failure reasons.
+- [x] Log cleaner failures.
+- [x] Log validation failures with the complete list of reasons.
+
+### Acceptance Criteria
+
+- [ ] The JSON response format is defined and locked.
+- [ ] `ai/cleaner.py` is created.
+- [ ] `ai/validation.py` is created.
+- [ ] Cleaner returns pure parsed JSON without Markdown or surrounding text.
+- [ ] Cleaner does not invent or repair missing response content.
+- [ ] Cleaner failures are logged.
+- [ ] Validation failures are logged with all detected reasons.
+- [ ] Missing mandatory keys are rejected.
+- [ ] Incorrect data types are rejected.
+- [ ] Invalid field lengths are rejected.
+- [ ] Unsupported enum values are rejected.
+- [ ] Unexpected JSON fields are rejected.
+- [ ] A `poor` fit requires `cv_patch` to be `null`.
+- [ ] A `strong`, `solid` or `stretch` fit requires a valid `cv_patch`.
+
+### Validation Rules
+
+#### `fit_assessment`
+
+- `level`
+  - required string
+  - allowed values: `strong`, `solid`, `stretch`, `poor`
+- `explanation`
+  - required string
+  - 50–1,000 characters
+- `relevant_experience`
+  - required list of strings
+  - minimum one item
+  - each item: 10–500 characters
+- `missing_requirements`
+  - required list of strings
+  - may be empty
+  - each item: 5–300 characters
+
+#### `cv_patch`
+
+- required for `strong`, `solid` and `stretch`
+- must be `null` for `poor`
+- allowed keys:
+  - `professional_summary`
+  - `experience_updates`
+  - `skills_to_highlight`
+
+#### `professional_summary`
+
+- required string
+- 80–700 characters
+
+#### `experience_updates`
+
+- required list
+- minimum one item
+- each item must contain:
+  - valid `experience_id`
+  - optional `suggested_job_title`
+  - `responsibilities`
+- each responsibility:
+  - 20–400 characters
+- maximum six responsibilities per experience entry
+
+#### `skills_to_highlight`
+
+- required list of strings
+- minimum one item
+- maximum 30 items
+- each skill must be supported by the original CV
+
+#### `gap_analysis`
+
+Required keys:
+
+- `supported_requirements`
+- `reasonably_derived_requirements`
+- `unsupported_requirements`
+
+Each unsupported requirement must contain:
+
+- `requirement`
+  - required string
+  - minimum 5 characters
+- `impact`
+  - allowed values: `low`, `medium`, `high`
+- `preparation_recommendation`
+  - required string
+  - minimum 20 characters
+- `interview_guidance`
+  - required string
+  - minimum 20 characters
+
+#### `warnings`
+
+- required list of strings
+- may be empty
+- each warning: 5–300 characters
+
+### Measurements
+
+- Cleaner returns pure parsed JSON.
+- Valid responses pass validation.
+- Validation fails when any mandatory rule is not met.
+- Validation returns all detected failure reasons.
+- Cleaner and validation errors are logged.
+
+### Test Cases
+
+- [x] Normal flow — a valid raw AI response is cleaned, parsed and validated successfully.
+- [x] Markdown wrapper — valid JSON inside a Markdown code block is extracted successfully.
+- [x] Surrounding text — valid JSON surrounded by AI text is extracted successfully.
+- [x] Missing keys — validation fails and lists the missing keys.
+- [x] Wrong type — validation fails when a field has an incorrect data type.
+- [x] Wrong size — validation fails when a field does not meet length or list-size rules.
+- [x] Invalid enum — validation fails for an unsupported fit level or impact value.
+- [x] Poor-fit violation — validation fails when a poor-fit response contains a CV patch.
+- [x] Cleaner failure — a response without valid JSON is rejected and logged.
+
+### Notes
+
+- The cleaner may remove wrappers and surrounding text, but it must not modify the JSON content.
+- Protected CV-field validation will compare the response with the original structured CV.
+- Company research and interview preparation models will be added in later tasks.
 
 ---
 

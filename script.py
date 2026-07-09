@@ -1,18 +1,114 @@
 from __future__ import annotations
 
+import json
 import logging
-import subprocess
 import sys
-from contextlib import contextmanager
-from pathlib import Path
-from types import SimpleNamespace
+from copy import deepcopy
 from typing import Callable
-from unittest.mock import Mock, patch
 
-from google.genai import errors
+from ai.cleaner import CleanerError, clean_ai_json_response
+from ai.validation import (
+    ResponseValidationError,
+    collect_validation_errors,
+    validate_cv_optimization_response,
+)
+from logger import logger
 
-import ai.ai_client as ai_client
-from ai.prompts import SIMPLE_TEST_PROMPT
+
+ORIGINAL_CV = {
+    "profile_id": "sale",
+    "professional_summary": (
+        "Commercial and AI project professional with experience in "
+        "stakeholder management, procurement, Python and process improvement."
+    ),
+    "experience": [
+        {
+            "id": "experience_001",
+            "company": "Example Company",
+            "job_title": "Commercial Manager",
+            "responsibilities": [
+                "Led stakeholder management across commercial and operational teams.",
+                "Improved procurement and reporting processes using structured analysis.",
+            ],
+        },
+        {
+            "id": "experience_002",
+            "company": "Second Company",
+            "job_title": "Account Manager",
+            "responsibilities": [
+                "Managed customer relationships and coordinated internal delivery teams.",
+            ],
+        },
+    ],
+    "skills": [
+        "Stakeholder management",
+        "Procurement",
+        "Python",
+        "Process improvement",
+        "Customer relationship management",
+    ],
+}
+
+
+VALID_RESPONSE = {
+    "fit_assessment": {
+        "level": "strong",
+        "explanation": (
+            "The candidate has directly relevant commercial, stakeholder-management "
+            "and process-improvement experience that matches the central requirements."
+        ),
+        "relevant_experience": [
+            "Led stakeholder management across commercial and operational teams.",
+        ],
+        "missing_requirements": [],
+    },
+    "cv_patch": {
+        "professional_summary": (
+            "Commercial and AI project professional with experience in stakeholder "
+            "management, procurement, Python-based workflow development and process "
+            "improvement across customer-facing and operational environments."
+        ),
+        "experience_updates": [
+            {
+                "experience_id": "experience_001",
+                "suggested_job_title": None,
+                "responsibilities": [
+                    "Led stakeholder management across commercial and operational teams "
+                    "to improve coordination and delivery.",
+                ],
+            }
+        ],
+        "skills_to_highlight": [
+            "Stakeholder management",
+            "Procurement",
+            "Python",
+        ],
+    },
+    "gap_analysis": {
+        "supported_requirements": [
+            "Stakeholder management experience",
+            "Procurement experience",
+        ],
+        "reasonably_derived_requirements": [
+            "Cross-functional process improvement",
+        ],
+        "unsupported_requirements": [
+            {
+                "requirement": "Direct experience with a specific enterprise platform",
+                "impact": "medium",
+                "preparation_recommendation": (
+                    "Review the platform fundamentals and prepare comparable examples "
+                    "from existing workflow and systems experience."
+                ),
+                "interview_guidance": (
+                    "State clearly that direct platform experience is limited, then "
+                    "connect the gap to proven experience learning adjacent systems."
+                ),
+            }
+        ],
+    },
+    "warnings": [],
+}
 
 
 class LogCaptureHandler(logging.Handler):
@@ -24,290 +120,279 @@ class LogCaptureHandler(logging.Handler):
         self.records.append(record)
 
 
-@contextmanager
-def capture_logs():
-    handler = LogCaptureHandler()
-    ai_client.logger.addHandler(handler)
-
-    try:
-        yield handler.records
-    finally:
-        ai_client.logger.removeHandler(handler)
-
-
 def assert_log_contains(
     records: list[logging.LogRecord],
     expected_text: str,
 ) -> None:
-    messages = [
-        record.getMessage()
-        for record in records
-    ]
+    messages = [record.getMessage() for record in records]
 
     assert any(
         expected_text in message
         for message in messages
-    ), f"Missing expected log: {expected_text}"
+    ), f"Expected log containing '{expected_text}' was not found."
 
 
-def create_mock_client(
-    *,
-    response_text: str | None = None,
-    error: Exception | None = None,
-) -> Mock:
-    client = Mock()
-
-    if error is not None:
-        client.models.generate_content.side_effect = error
-    else:
-        client.models.generate_content.return_value = (
-            SimpleNamespace(text=response_text)
-        )
-
-    return client
-
-
-def test_live_gemini_request() -> None:
-    result = ai_client.send_gemini_request(
-        SIMPLE_TEST_PROMPT
+def validate_payload(payload: dict) -> None:
+    validate_cv_optimization_response(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
     )
 
-    assert isinstance(result, str)
-    assert result.strip()
-    assert "Gemini connection successful" in result
 
+def test_normal_flow() -> None:
+    raw_response = json.dumps(VALID_RESPONSE)
 
-def test_timeout_retries_and_logs() -> None:
-    client = create_mock_client(
-        error=TimeoutError("Forced timeout")
+    cleaned = clean_ai_json_response(raw_response)
+    validated = validate_cv_optimization_response(
+        response_data=cleaned,
+        original_cv=ORIGINAL_CV,
     )
 
-    with (
-        patch.object(
-            ai_client,
-            "get_gemini_client",
-            return_value=client,
-        ),
-        patch.object(
-            ai_client.settings,
-            "gemini_max_attempts",
-            3,
-        ),
-        patch.object(
-            ai_client.time,
-            "sleep",
-            return_value=None,
-        ),
-        capture_logs() as records,
-    ):
+    assert validated.fit_assessment.level == "strong"
+    assert validated.cv_patch is not None
+
+
+def test_markdown_wrapper() -> None:
+    raw_response = (
+        "```json\n"
+        + json.dumps(VALID_RESPONSE, indent=2)
+        + "\n```"
+    )
+
+    cleaned = clean_ai_json_response(raw_response)
+    validate_payload(cleaned)
+
+    assert cleaned == VALID_RESPONSE
+
+
+def test_surrounding_text() -> None:
+    raw_response = (
+        "Here is the requested result:\n\n"
+        + json.dumps(VALID_RESPONSE)
+        + "\n\nThis completes the analysis."
+    )
+
+    cleaned = clean_ai_json_response(raw_response)
+    validate_payload(cleaned)
+
+    assert cleaned == VALID_RESPONSE
+
+
+def test_missing_keys_lists_all_reasons() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload.pop("warnings")
+    payload.pop("gap_analysis")
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    combined = " | ".join(reasons)
+
+    assert "warnings" in combined
+    assert "gap_analysis" in combined
+    assert len(reasons) >= 2
+
+
+def test_wrong_type() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["fit_assessment"]["relevant_experience"] = "not-a-list"
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    assert any(
+        "relevant_experience" in reason
+        for reason in reasons
+    )
+
+
+def test_wrong_size() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["fit_assessment"]["explanation"] = "Too short"
+    payload["cv_patch"]["experience_updates"] = []
+    payload["cv_patch"]["skills_to_highlight"] = []
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    combined = " | ".join(reasons)
+
+    assert "explanation" in combined
+    assert "experience_updates" in combined
+    assert "skills_to_highlight" in combined
+
+
+def test_invalid_enum() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["fit_assessment"]["level"] = "excellent"
+    payload["gap_analysis"]["unsupported_requirements"][0]["impact"] = "critical"
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    combined = " | ".join(reasons)
+
+    assert "fit_assessment.level" in combined
+    assert "impact" in combined
+
+
+def test_poor_fit_violation() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["fit_assessment"]["level"] = "poor"
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    assert any(
+        "cv_patch must be null" in reason
+        for reason in reasons
+    )
+
+
+def test_non_poor_fit_requires_patch() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["fit_assessment"]["level"] = "solid"
+    payload["cv_patch"] = None
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    assert any(
+        "cv_patch is required" in reason
+        for reason in reasons
+    )
+
+
+def test_cleaner_failure_is_logged() -> None:
+    handler = LogCaptureHandler()
+    logger.addHandler(handler)
+
+    try:
         try:
-            ai_client.send_gemini_request(
-                "Timeout test"
+            clean_ai_json_response(
+                "This response contains no JSON object."
             )
-        except ai_client.GeminiRequestError:
+        except CleanerError:
             pass
         else:
             raise AssertionError(
-                "Timeout did not produce a controlled error."
+                "Cleaner accepted a response without valid JSON."
             )
-
-    assert client.models.generate_content.call_count == 3
-    assert_log_contains(records, "attempt=3/3")
-
-
-def test_api_failure_is_logged() -> None:
-    api_error = errors.ClientError(
-        400,
-        {
-            "error": {
-                "code": 400,
-                "status": "INVALID_ARGUMENT",
-                "message": "Forced API failure",
-            }
-        },
-    )
-
-    client = create_mock_client(error=api_error)
-
-    with (
-        patch.object(
-            ai_client,
-            "get_gemini_client",
-            return_value=client,
-        ),
-        patch.object(
-            ai_client.time,
-            "sleep",
-            return_value=None,
-        ),
-        capture_logs() as records,
-    ):
-        try:
-            ai_client.send_gemini_request(
-                "API failure test"
-            )
-        except ai_client.GeminiRequestError:
-            pass
-        else:
-            raise AssertionError(
-                "API failure was not controlled."
-            )
-
-    assert client.models.generate_content.call_count == 1
-    assert_log_contains(
-        records,
-        "non-retryable failure",
-    )
-
-
-def test_empty_response_is_rejected() -> None:
-    client = create_mock_client(response_text="   ")
-
-    with (
-        patch.object(
-            ai_client,
-            "get_gemini_client",
-            return_value=client,
-        ),
-        patch.object(
-            ai_client.settings,
-            "gemini_max_attempts",
-            3,
-        ),
-        patch.object(
-            ai_client.time,
-            "sleep",
-            return_value=None,
-        ),
-        capture_logs() as records,
-    ):
-        try:
-            ai_client.send_gemini_request(
-                "Empty response test"
-            )
-        except ai_client.GeminiRequestError:
-            pass
-        else:
-            raise AssertionError(
-                "Empty response was not rejected."
-            )
-
-    assert client.models.generate_content.call_count == 3
-    assert_log_contains(
-        records,
-        "EmptyGeminiResponseError",
-    )
-
-
-def test_maximum_attempts_are_enforced() -> None:
-    api_error = errors.ServerError(
-        503,
-        {
-            "error": {
-                "code": 503,
-                "status": "UNAVAILABLE",
-                "message": "Forced retryable failure",
-            }
-        },
-    )
-
-    client = create_mock_client(error=api_error)
-
-    with (
-        patch.object(
-            ai_client,
-            "get_gemini_client",
-            return_value=client,
-        ),
-        patch.object(
-            ai_client.settings,
-            "gemini_max_attempts",
-            3,
-        ),
-        patch.object(
-            ai_client.time,
-            "sleep",
-            return_value=None,
-        ),
-        capture_logs() as records,
-    ):
-        try:
-            ai_client.send_gemini_request(
-                "Maximum attempts test"
-            )
-        except ai_client.GeminiRequestError:
-            pass
-        else:
-            raise AssertionError(
-                "Retryable failure did not stop."
-            )
-
-    assert client.models.generate_content.call_count == 3
+    finally:
+        logger.removeHandler(handler)
 
     assert_log_contains(
-        records,
-        "failed after 3 total attempts",
+        handler.records,
+        "AI response cleaner failed",
     )
 
 
-def test_api_key_is_not_tracked() -> None:
-    result = subprocess.run(
-        ["git", "ls-files"],
-        capture_output=True,
-        text=True,
-        check=True,
+def test_unexpected_field_rejected() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["unexpected_field"] = "not allowed"
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
     )
 
-    tracked_files = result.stdout.splitlines()
+    assert any(
+        "unexpected_field" in reason
+        for reason in reasons
+    )
 
-    assert ".env" not in tracked_files
 
-    api_key = ai_client.settings.gemini_api_key
+def test_invalid_experience_id_rejected() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["cv_patch"]["experience_updates"][0][
+        "experience_id"
+    ] = "experience_999"
 
-    for filename in tracked_files:
-        path = Path(filename)
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
 
-        if not path.is_file():
-            continue
+    assert any(
+        "does not exist in the original CV" in reason
+        for reason in reasons
+    )
 
+
+def test_unsupported_skill_rejected() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload["cv_patch"]["skills_to_highlight"].append(
+        "Quantum computing"
+    )
+
+    reasons = collect_validation_errors(
+        response_data=payload,
+        original_cv=ORIGINAL_CV,
+    )
+
+    assert any(
+        "Quantum computing" in reason
+        and "not supported by the original CV" in reason
+        for reason in reasons
+    )
+
+
+def test_all_validation_failures_are_logged() -> None:
+    payload = deepcopy(VALID_RESPONSE)
+    payload.pop("warnings")
+    payload["fit_assessment"]["explanation"] = "Short"
+
+    handler = LogCaptureHandler()
+    logger.addHandler(handler)
+
+    try:
         try:
-            content = path.read_text(
-                encoding="utf-8"
+            validate_cv_optimization_response(
+                response_data=payload,
+                original_cv=ORIGINAL_CV,
             )
-        except UnicodeDecodeError:
-            continue
+        except ResponseValidationError as error:
+            assert len(error.reasons) >= 2
+        else:
+            raise AssertionError(
+                "Invalid response did not raise ResponseValidationError."
+            )
+    finally:
+        logger.removeHandler(handler)
 
-        assert api_key not in content, (
-            f"Gemini API key found in tracked file: "
-            f"{filename}"
-        )
+    assert_log_contains(
+        handler.records,
+        "CV response validation failed",
+    )
 
 
 TESTS: list[tuple[str, Callable[[], None]]] = [
-    (
-        "Valid Gemini request returns text",
-        test_live_gemini_request,
-    ),
-    (
-        "Timeout retries and is logged",
-        test_timeout_retries_and_logs,
-    ),
-    (
-        "API failure is controlled and logged",
-        test_api_failure_is_logged,
-    ),
-    (
-        "Empty response is rejected",
-        test_empty_response_is_rejected,
-    ),
-    (
-        "Processing stops after 3 attempts",
-        test_maximum_attempts_are_enforced,
-    ),
-    (
-        "Gemini API key is not tracked",
-        test_api_key_is_not_tracked,
-    ),
+    ("Valid response cleaned and validated", test_normal_flow),
+    ("Markdown JSON wrapper extracted", test_markdown_wrapper),
+    ("Surrounding AI text removed", test_surrounding_text),
+    ("Missing keys list all reasons", test_missing_keys_lists_all_reasons),
+    ("Wrong field type rejected", test_wrong_type),
+    ("Wrong field and list sizes rejected", test_wrong_size),
+    ("Unsupported enum values rejected", test_invalid_enum),
+    ("Poor fit with CV patch rejected", test_poor_fit_violation),
+    ("Non-poor fit without CV patch rejected", test_non_poor_fit_requires_patch),
+    ("Cleaner failure rejected and logged", test_cleaner_failure_is_logged),
+    ("Unexpected JSON field rejected", test_unexpected_field_rejected),
+    ("Unknown experience ID rejected", test_invalid_experience_id_rejected),
+    ("Unsupported highlighted skill rejected", test_unsupported_skill_rejected),
+    ("All validation failures logged", test_all_validation_failures_are_logged),
 ]
 
 
@@ -315,15 +400,11 @@ def main() -> int:
     passed = 0
     failed = 0
 
-    original_handlers = list(
-        ai_client.logger.handlers
-    )
-    original_propagate = (
-        ai_client.logger.propagate
-    )
+    original_handlers = list(logger.handlers)
+    original_propagate = logger.propagate
 
-    ai_client.logger.handlers = []
-    ai_client.logger.propagate = False
+    logger.handlers = []
+    logger.propagate = False
 
     try:
         for test_name, test_function in TESTS:
@@ -331,7 +412,6 @@ def main() -> int:
                 test_function()
             except Exception as error:
                 failed += 1
-
                 print(
                     f"[FAIL] {test_name} — "
                     f"{type(error).__name__}: {error}"
@@ -340,17 +420,11 @@ def main() -> int:
                 passed += 1
                 print(f"[PASS] {test_name}")
     finally:
-        ai_client.logger.handlers = (
-            original_handlers
-        )
-        ai_client.logger.propagate = (
-            original_propagate
-        )
+        logger.handlers = original_handlers
+        logger.propagate = original_propagate
 
     print()
-    print(
-        f"Result: {passed} passed, {failed} failed"
-    )
+    print(f"Result: {passed} passed, {failed} failed")
 
     return 0 if failed == 0 else 1
 

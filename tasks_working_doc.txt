@@ -1,4 +1,4 @@
-## TASK-009 — Define Section Revision Models and Validation Rules
+## TASK-018 — Firebase persistance for Job application and company research
 
 ### Status
 
@@ -6,15 +6,15 @@ Backlog
 
 ### Goal
 
-This task will allow user to select the sections that need revision and write comments to it so the new AI call can be made.
+This task will allow us to save and read results of polished cvs as well as company info to firebase
 
 ### Description
 
-In this task a logic will be developed which will send another call to AI asking to write selected sections again. After results are in, revised sections will replace sections that needed review and another round of cleaning andavalidation will be done.
+In this task we define logic in whcih we will be saving and reading saved cvs and company info in firebase in order to make them accessible later and to avoid additional runs of the whole workflow when possible.
 
 ### Dependencies
 
-Task-008 must be completed.
+Task 004 must be completed.
 
 ### Subtasks
 
@@ -24,36 +24,32 @@ Task-008 must be completed.
 
 ### Acceptance Criteria
 
-- [ ] Separate AI instructions are written inside of prompts.py for revison workflow
-- [ ] When CV is ready it gets saved to db as record with status draft
-- [ ] when user opens preview two buttons are displayed - request changes and accept cv
-- [ ] Clicking accpet changes status in db and allows savng as pdf from print feature
-- [ ] Clicking request changes allows user to click only on sections that can be changed, write new mini prompt and save
-- [ ] Each mini prompt should be possible to remowe and or edit
-- [ ] After edits are made button make changes is clicked and new workflow starts
-- [ ] Sections that need no revision are used in prompt and AI is requested not to edit them
-- [ ] New raw response is cleaned and validated in same manner as initial one
-- [ ] Tehre is a button to cancel requesting changes while on that page
-
+- [ ] firebase.py file created
+- [ ] New project in firebase createad, api key generated
+- [ ] key saved in appropriate folders according to google instructions
+- [ ] key saved in appropriate folders according to google instructions
+- [ ] key saved in secrets folder which is not commited.
+- [ ] each record saved with unique id
+- [ ] timezone used is AMsterdam
+- [ ] key saved in secrets folder which is not commited.
+- [ ] Retry scheme handled as max 3 attempts are possible
+- [ ] Timeout set and error handled
+- [ ] Logging important events implemented
 
 ### Measurements
 
 How will success be measured?
 
-- Buttons to accept and request changes displayed and work
-- After clicking request changes only appropriate sections can be commented for revision
-- Comments can be deleted and edited
-- After changes are requested cv is saved to db with status accpeted after review
-- Preview accessible as in task 007
-
+- Firestore API key saved according to instructions and not commited
+- Max tries and timeout set and errors handled
+- Each record saved with unique id
+- Timezone set to amsterdam
 
 ### Test Cases
 
-- [ ] Normal flow - user clicks accept, db record is updated and cv accessable through my applications and preview is possible to print as pdf
-- [ ] Normal flow - user clicks request changes and can comment on appripriate fields, save, delete, edit each comment
-- [ ] Normal flow - user clicks on final request changes button after all comments are finished and new cv is saved to db and accessible throug preview
-- [ ] Normal flow - user save cv as pdf from preview
-- [ ] Expected failure - 
+- [ ] Normal flow
+- [ ] Invalid input
+- [ ] Expected failure
 - [ ] Relevant edge case
 
 ### Notes

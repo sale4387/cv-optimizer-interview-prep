@@ -1267,7 +1267,7 @@ How will success be measured?
 
 Only include risks, open questions or important implementation constraints.
 
-## TASK-018 — Firebase persistance for Job application and company research
+## TASK-018 — Implement Firebase Persistence for Job Applications and Company Research
 
 ### Status
 
@@ -1275,47 +1275,81 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+This task will allow us to save and read polished CV results and company information in Firebase.
 
 ### Description
 
-What is included in this task?
-
-What is explicitly not included?
+In this task, we will define the logic for saving and reading CV application results and company information in Firebase, making them accessible later and avoiding additional workflow runs when reusable data already exists.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+TASK-004 must be completed first.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Create and configure a Firebase project with Firestore enabled.
+- [ ] Configure Firebase Admin SDK credentials for backend access.
+- [ ] Store credentials outside the repository and load their location through environment configuration.
+- [ ] Create `firebase.py`.
+- [ ] Initialize the Firestore client.
+- [ ] Create storage logic for the `companies` collection.
+- [ ] Create storage logic for the `applications` collection.
+- [ ] Add functions for saving and reading company records.
+- [ ] Add functions for saving and reading application records.
+- [ ] Use the normalized company key as the company document ID.
+- [ ] Generate a unique ID for each application record.
+- [ ] Add creation and update timestamps.
+- [ ] Use `Europe/Amsterdam` when displaying stored timestamps.
+- [ ] Validate records before saving and after reading.
+- [ ] Implement timeout handling.
+- [ ] Implement a maximum of three total attempts for retryable failures.
+- [ ] Log important read, write, retry and failure events.
+- [ ] Confirm that Firebase credentials are not committed to Git.
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] A Firebase project with Firestore is created.
+- [ ] `firebase.py` is created.
+- [ ] Backend credentials are configured securely and are not stored in the repository.
+- [ ] Firestore contains the `companies` and `applications` collections.
+- [ ] Company information can be saved and read using a normalized company key.
+- [ ] Application results can be saved and read using a unique application ID.
+- [ ] Existing company records are reused instead of creating duplicates.
+- [ ] Records contain creation and update timestamps.
+- [ ] Stored timestamps can be displayed using the `Europe/Amsterdam` timezone.
+- [ ] Invalid records are rejected.
+- [ ] Stored records are validated before reuse.
+- [ ] Timeout errors are handled.
+- [ ] Retryable failures allow a maximum of three total attempts.
+- [ ] Important operations and failures are logged.
 
 ### Measurements
 
-How will success be measured?
-
-- Metric 1
-- Metric 2
+- Firebase credentials are configured securely and are not committed.
+- A company record can be saved and read successfully.
+- An application record can be saved and read successfully.
+- Each application record has a unique ID.
+- Existing companies are not duplicated.
+- Timeout and retry errors are handled and logged.
+- Stored timestamps are displayed in the Amsterdam timezone.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Normal flow — a company record is saved and successfully read using its company key.
+- [ ] Normal flow — an application record is saved with a unique ID and successfully read.
+- [ ] Invalid input — a record missing mandatory fields is rejected.
+- [ ] Expected failure — missing or invalid Firebase credentials produce a controlled and logged error.
+- [ ] Expected failure — a timeout or retryable connection failure stops after three total attempts and is logged.
+- [ ] Expected failure — reading a nonexistent document returns a controlled not-found result.
+- [ ] Relevant edge case — an existing company record is reused instead of creating a duplicate.
+- [ ] Relevant edge case — malformed stored data is rejected before reuse.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- Firestore access must only go through the FastAPI backend.
+- The Streamlit frontend must not access Firestore directly.
+- The MVP does not include user accounts.
+- Credentials must not be stored in a committed `secrets` folder.
 
 # This Sprint
 

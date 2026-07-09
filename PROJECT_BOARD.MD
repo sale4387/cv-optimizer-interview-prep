@@ -38,111 +38,6 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-## TASK-001 — Initialize Project Structure and Development Environment
-
-### Status
-
-Backlog
-
-### Goal
-
-Create a stable, clean and repeatable development environment for the project.
-
-The project should be ready for feature development without repository, interpreter, dependency or configuration issues.
-
-### Description
-
-This task includes:
-
-- creating and configuring the Git repository
-- creating the local project folder
-- adding the initial project documentation
-- creating the planned folder and file structure
-- creating and activating a Python virtual environment
-- adding the initial required dependencies
-- preparing environment variable handling
-- configuring `.gitignore`
-- verifying the Python interpreter and installed packages
-- completing the initial commit and push
-
-This task does not include any product feature development.
-
-### Dependencies
-
-None — this is the first implementation task.
-
-### Subtasks
-
-- [ ] Create the GitHub repository.
-- [ ] Create the local project folder.
-- [ ] Initialize Git and connect the local repository to GitHub.
-- [ ] Create `.gitignore`.
-- [ ] Ensure `.venv`, `.env`, cache files and local IDE files are excluded from Git.
-- [ ] Add the initial project documentation:
-  - [ ] `README.md`
-  - [ ] `PROJECT_SCOPE.md`
-  - [ ] `ARCHITECTURE.md`
-  - [ ] `PROJECT_BOARD.md`
-  - [ ] `DECISIONS.md`
-
-- [ ] Create the initial planned folder structure.
-- [ ] Create the Python virtual environment.
-- [ ] Activate the virtual environment.
-- [ ] Configure the correct Python interpreter.
-- [ ] Create `requirements.txt`.
-- [ ] Add only the initial dependencies currently required.
-- [ ] Install dependencies from `requirements.txt`.
-- [ ] Create `.env.example`.
-- [ ] Create a local `.env` file if environment variables are already required.
-- [ ] Verify that installed packages can be imported.
-- [ ] Commit and push the initial project setup.
-
-### Acceptance Criteria
-
-- [ ] The GitHub repository exists and is connected to the local repository.
-- [ ] The initial project folder structure exists.
-- [ ] The Python virtual environment can be created and activated.
-- [ ] The correct Python interpreter is selected.
-- [ ] `pip install -r requirements.txt` completes without errors.
-- [ ] Initial package imports complete without errors.
-- [ ] The following documents exist:
-  - [ ] `README.md`
-  - [ ] `PROJECT_SCOPE.md`
-  - [ ] `ARCHITECTURE.md`
-  - [ ] `PROJECT_BOARD.md`
-  - [ ] `DECISIONS.md`
-
-- [ ] `.gitignore` excludes `.venv`, `.env`, cache files and local IDE files.
-- [ ] `.env.example` exists.
-- [ ] No secrets or local environment files are tracked by Git.
-- [ ] The initial commit and push complete successfully.
-- [ ] No product feature has been implemented as part of this task.
-
-### Measurements
-
-- `pip install -r requirements.txt` succeeds with zero errors.
-- Initial package imports succeed with zero errors.
-- `git status` does not show `.venv`, `.env` or other excluded local files.
-- Initial commit and push complete without errors.
-- All required initial documentation files are present.
-- The development environment can be restarted without manual repair.
-
-### Test Cases
-
-- [ ] Activate the virtual environment from a new terminal session.
-- [ ] Run `pip install -r requirements.txt`.
-- [ ] Import the initial installed packages.
-- [ ] Run `git status` and verify that excluded files are not tracked.
-- [ ] Verify that `.env.example` is committed and `.env` is not committed.
-- [ ] Commit a small documentation change and push it successfully.
-- [ ] Close and reopen the project and verify that the correct interpreter can be selected again.
-
-### Notes
-
-Dependencies should be added gradually as they become necessary.
-
-The project should not install speculative packages that are not yet used.
-
 ## TASK-002 — Define CV Data Model and Build Initial Streamlit Input Flow
 
 ### Status
@@ -1353,13 +1248,110 @@ TASK-004 must be completed first.
 
 # This Sprint
 
-Tasks selected for the current development cycle.
+## TASK-001 — Initialize Project Structure and Development Environment
 
-Questions to answer:
+### Status
 
-- What are we focusing on now?
-- Why were these tasks selected?
-- What should be completed before the next review?
+in Progress
+
+### Goal
+
+Create a stable, clean and repeatable development environment for the project.
+
+The project should be ready for feature development without repository, interpreter, dependency or configuration issues.
+
+### Description
+
+This task includes:
+
+- creating and configuring the Git repository
+- creating the local project folder
+- adding the initial project documentation
+- creating the planned folder and file structure
+- creating and activating a Python virtual environment
+- adding the initial required dependencies
+- preparing environment variable handling
+- configuring `.gitignore`
+- verifying the Python interpreter and installed packages
+- completing the initial commit and push
+
+This task does not include any product feature development.
+
+### Dependencies
+
+None — this is the first implementation task.
+
+### Subtasks
+
+- [x] Create the GitHub repository.
+- [x] Create the local project folder.
+- [x] Initialize Git and connect the local repository to GitHub.
+- [x] Create `.gitignore`.
+- [x] Ensure `.venv`, `.env`, cache files and local IDE files are excluded from Git.
+- [x] Add the initial project documentation:
+  - [x] `README.md`
+  - [x] `PROJECT_SCOPE.md`
+  - [x] `ARCHITECTURE.md`
+  - [x] `PROJECT_BOARD.md`
+  - [x] `DECISIONS.md`
+
+- [x] Create the initial planned folder structure.
+- [x] Create the Python virtual environment.
+- [x] Activate the virtual environment.
+- [x] Configure the correct Python interpreter.
+- [x] Create `requirements.txt`.
+- [x] Add only the initial dependencies currently required.
+- [x] Install dependencies from `requirements.txt`.
+- [x] Create `.env.example`.
+- [?] Create a local `.env` file if environment variables are already required.
+- [x] Verify that installed packages can be imported.
+- [x] Commit and push the initial project setup.
+
+### Acceptance Criteria
+
+- The GitHub repository exists and is connected to the local repository.
+- The initial project folder structure exists.
+- The Python virtual environment can be created and activated.
+- The correct Python interpreter is selected.
+- `pip install -r requirements.txt` completes without errors.
+- Initial package imports complete without errors.
+- The following documents exist:
+  - [ ] `README.md`
+  - [ ] `PROJECT_SCOPE.md`
+  - [ ] `ARCHITECTURE.md`
+  - [ ] `PROJECT_BOARD.md`
+  - [ ] `DECISIONS.md`
+
+- `.gitignore` excludes `.venv`, `.env`, cache files and local IDE files.
+- `.env.example` exists.
+- No secrets or local environment files are tracked by Git.
+- The initial commit and push complete successfully.
+- No product feature has been implemented as part of this task.
+
+### Measurements
+
+- `pip install -r requirements.txt` succeeds with zero errors.
+- Initial package imports succeed with zero errors.
+- `git status` does not show `.venv`, `.env` or other excluded local files.
+- Initial commit and push complete without errors.
+- All required initial documentation files are present.
+- The development environment can be restarted without manual repair.
+
+### Test Cases
+
+- [x] Activate the virtual environment from a new terminal session.
+- [x] Run `pip install -r requirements.txt`.
+- [x] Import the initial installed packages.
+- [x] Run `git status` and verify that excluded files are not tracked.
+- [x] Verify that `.env.example` is committed and `.env` is not committed.
+- [x] Commit a small documentation change and push it successfully.
+- [ ] Close and reopen the project and verify that the correct interpreter can be selected again.
+
+### Notes
+
+Dependencies should be added gradually as they become necessary.
+
+The project should not install speculative packages that are not yet used.
 
 # In Progress
 

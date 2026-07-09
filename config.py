@@ -11,6 +11,25 @@ class Settings(BaseSettings):
     firebase_credentials_path: str = Field(
     validation_alias="FIREBASE_CREDENTIALS_PATH",
     )
+    gemini_api_key: str = Field(
+    validation_alias="GEMINI_API_KEY",
+    )
+    gemini_model: str = Field(
+        default="gemini-3.5-flash",
+        validation_alias="GEMINI_MODEL",
+    )
+    gemini_max_output_tokens: int = Field(
+        default=8192,
+        validation_alias="GEMINI_MAX_OUTPUT_TOKENS",
+    )
+    gemini_timeout_seconds: float = Field(
+        default=60.0,
+        validation_alias="GEMINI_TIMEOUT_SECONDS",
+    )
+    gemini_max_attempts: int = Field(
+        default=3,
+        validation_alias="GEMINI_MAX_ATTEMPTS",
+    )
     rate_limit: str = Field(
         default="10/minute",
         validation_alias="RATE_LIMIT",

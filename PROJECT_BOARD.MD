@@ -38,301 +38,6 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-## TASK-005 — Integrate Gemini Client, Prompt Configuration and Retry Logic
-
-### Status
-
-Backlog
-
-### Goal
-
-Integrate Gemini as the AI provider and create a reusable client foundation for future AI workflows.
-
-### Description
-
-The following will be implemented:
-
-- Gemini API client configuration
-- model configuration
-- prompt instructions
-- maximum output token configuration
-- request timeout
-- retry logic with a maximum of three total attempts
-- logging and controlled failure handling
-
-This task only establishes and tests the Gemini integration. CV optimization will be implemented in a later task.
-
-### Dependencies
-
-TASK-018 must be completed first.
-
-### Subtasks
-
-- [ ] Install and configure the current Google GenAI Python SDK.
-- [ ] Create `ai/ai_client.py`.
-- [ ] Create `ai/prompts.py`.
-- [ ] Add the Gemini API key to environment configuration.
-- [ ] Add the selected model name to `config.py`.
-- [ ] Add maximum output token, timeout and retry settings to `config.py`.
-- [ ] Create a reusable function for sending requests to Gemini.
-- [ ] Implement retry logic with a maximum of three total attempts.
-- [ ] Add handling for API failures, timeouts and empty responses.
-- [ ] Log each failed attempt and the final workflow failure.
-- [ ] Add a simple test prompt to confirm that the client returns a text response.
-- [ ] Confirm that the API key is not hardcoded or committed to Git.
-
-### Acceptance Criteria
-
-- [ ] A suitable Gemini model is selected.
-- [ ] `ai/ai_client.py` is created.
-- [ ] `ai/prompts.py` is created.
-- [ ] Gemini API key is securely stored through environment variables.
-- [ ] Model name is configurable.
-- [ ] Maximum output tokens are configured.
-- [ ] Request timeout is configured.
-- [ ] Retry logic allows a maximum of three total attempts.
-- [ ] API failures, timeouts and empty responses are handled and logged.
-- [ ] Final failure after the third unsuccessful attempt is logged.
-- [ ] A successful test request returns a non-empty string.
-- [ ] No Gemini secrets are hardcoded or committed to Git.
-
-### Measurements
-
-- The Gemini client runs without import or runtime errors.
-- A valid test request returns a non-empty text response.
-- A failed request stops after three total attempts.
-- Every failed attempt is logged.
-- Final failure is returned in a controlled form.
-- Gemini credentials do not exist in tracked repository files.
-
-### Test Cases
-
-- [ ] Normal flow — a valid test prompt returns a non-empty string.
-- [ ] Timeout — the request times out, retries where appropriate and logs the failure.
-- [ ] API failure — Gemini returns an error and the attempt is logged.
-- [ ] Empty response — an empty response is treated as a failed attempt.
-- [ ] Maximum attempts reached — processing stops after three total unsuccessful attempts and logs the final failure.
-
-### Notes
-
-- Prompt instructions belong in `ai/prompts.py`; technical settings belong in `config.py`.
-- This task does not yet generate or validate an optimized CV.
-- Model selection should be based on output quality, structured-output support, availability and expected cost.
-
-## TASK-006 — Define Core CV Optimization Response Models, Cleaner and Validation Rules
-
-### Status
-
-Backlog
-
-### Goal
-
-Define the minimum set of response models and validation rules required to ensure the integrity of the generated CV result.
-
-### Description
-
-With this task, we will define the expected JSON response format returned by the AI.
-
-Furthermore, we will define cleaner rules that remove Markdown code fences and surrounding text from the AI response.
-
-Finally, we will define validation rules that check:
-
-- required JSON keys
-- data types
-- allowed values
-- minimum and maximum lengths
-- consistency between the fit result and CV output
-
-Company research and interview preparation are not included in this task.
-
-### Dependencies
-
-TASK-005 must be completed first.
-
-### Expected JSON Format
-
-```json
-{
-  "fit_assessment": {
-    "level": "strong",
-    "explanation": "Explanation of the candidate's fit.",
-    "relevant_experience": [
-      "Relevant experience supported by the original CV."
-    ],
-    "missing_requirements": []
-  },
-  "cv_patch": {
-    "professional_summary": "Optimized professional summary.",
-    "experience_updates": [
-      {
-        "experience_id": "experience_001",
-        "suggested_job_title": null,
-        "responsibilities": [
-          "Optimized responsibility based on existing CV information."
-        ]
-      }
-    ],
-    "skills_to_highlight": ["Stakeholder management"]
-  },
-  "gap_analysis": {
-    "supported_requirements": ["Requirement supported by the CV."],
-    "reasonably_derived_requirements": [],
-    "unsupported_requirements": [
-      {
-        "requirement": "Unsupported requirement.",
-        "impact": "medium",
-        "preparation_recommendation": "Recommended preparation.",
-        "interview_guidance": "How to discuss the gap honestly."
-      }
-    ]
-  },
-  "warnings": []
-}
-```
-
-For a `poor` fit, `cv_patch` must be `null`.
-
-### Subtasks
-
-- [ ] Define Pydantic models for the core CV optimization response.
-- [ ] Define nested models for fit assessment, CV patch and gap analysis.
-- [ ] Configure models to reject unexpected fields.
-- [ ] Create `ai/cleaner.py`.
-- [ ] Remove Markdown JSON fences from AI responses.
-- [ ] Extract the JSON object from surrounding AI text.
-- [ ] Reject responses that do not contain valid JSON.
-- [ ] Create `ai/validation.py`.
-- [ ] Validate required keys, data types, enums and field lengths.
-- [ ] Validate that referenced experience IDs exist in the original CV.
-- [ ] Validate that highlighted skills are supported by the original CV.
-- [ ] Enforce the poor-fit rule.
-- [ ] Return all validation failure reasons.
-- [ ] Log cleaner failures.
-- [ ] Log validation failures with the complete list of reasons.
-
-### Acceptance Criteria
-
-- [ ] The JSON response format is defined and locked.
-- [ ] `ai/cleaner.py` is created.
-- [ ] `ai/validation.py` is created.
-- [ ] Cleaner returns pure parsed JSON without Markdown or surrounding text.
-- [ ] Cleaner does not invent or repair missing response content.
-- [ ] Cleaner failures are logged.
-- [ ] Validation failures are logged with all detected reasons.
-- [ ] Missing mandatory keys are rejected.
-- [ ] Incorrect data types are rejected.
-- [ ] Invalid field lengths are rejected.
-- [ ] Unsupported enum values are rejected.
-- [ ] Unexpected JSON fields are rejected.
-- [ ] A `poor` fit requires `cv_patch` to be `null`.
-- [ ] A `strong`, `solid` or `stretch` fit requires a valid `cv_patch`.
-
-### Validation Rules
-
-#### `fit_assessment`
-
-- `level`
-  - required string
-  - allowed values: `strong`, `solid`, `stretch`, `poor`
-- `explanation`
-  - required string
-  - 50–1,000 characters
-- `relevant_experience`
-  - required list of strings
-  - minimum one item
-  - each item: 10–500 characters
-- `missing_requirements`
-  - required list of strings
-  - may be empty
-  - each item: 5–300 characters
-
-#### `cv_patch`
-
-- required for `strong`, `solid` and `stretch`
-- must be `null` for `poor`
-- allowed keys:
-  - `professional_summary`
-  - `experience_updates`
-  - `skills_to_highlight`
-
-#### `professional_summary`
-
-- required string
-- 80–700 characters
-
-#### `experience_updates`
-
-- required list
-- minimum one item
-- each item must contain:
-  - valid `experience_id`
-  - optional `suggested_job_title`
-  - `responsibilities`
-- each responsibility:
-  - 20–400 characters
-- maximum six responsibilities per experience entry
-
-#### `skills_to_highlight`
-
-- required list of strings
-- minimum one item
-- maximum 30 items
-- each skill must be supported by the original CV
-
-#### `gap_analysis`
-
-Required keys:
-
-- `supported_requirements`
-- `reasonably_derived_requirements`
-- `unsupported_requirements`
-
-Each unsupported requirement must contain:
-
-- `requirement`
-  - required string
-  - minimum 5 characters
-- `impact`
-  - allowed values: `low`, `medium`, `high`
-- `preparation_recommendation`
-  - required string
-  - minimum 20 characters
-- `interview_guidance`
-  - required string
-  - minimum 20 characters
-
-#### `warnings`
-
-- required list of strings
-- may be empty
-- each warning: 5–300 characters
-
-### Measurements
-
-- Cleaner returns pure parsed JSON.
-- Valid responses pass validation.
-- Validation fails when any mandatory rule is not met.
-- Validation returns all detected failure reasons.
-- Cleaner and validation errors are logged.
-
-### Test Cases
-
-- [ ] Normal flow — a valid raw AI response is cleaned, parsed and validated successfully.
-- [ ] Markdown wrapper — valid JSON inside a Markdown code block is extracted successfully.
-- [ ] Surrounding text — valid JSON surrounded by AI text is extracted successfully.
-- [ ] Missing keys — validation fails and lists the missing keys.
-- [ ] Wrong type — validation fails when a field has an incorrect data type.
-- [ ] Wrong size — validation fails when a field does not meet length or list-size rules.
-- [ ] Invalid enum — validation fails for an unsupported fit level or impact value.
-- [ ] Poor-fit violation — validation fails when a poor-fit response contains a CV patch.
-- [ ] Cleaner failure — a response without valid JSON is rejected and logged.
-
-### Notes
-
-- The cleaner may remove wrappers and surrounding text, but it must not modify the JSON content.
-- Protected CV-field validation will compare the response with the original structured CV.
-- Company research and interview preparation models will be added in later tasks.
-
 ## TASK-007 — Implement Role Fit and CV Optimization Workflow
 
 ### Status
@@ -977,6 +682,220 @@ Questions to answer:
 - Who or what is blocking progress?
 - What still needs to be tested?
 
+## TASK-006 — Define Core CV Optimization Response Models, Cleaner and Validation Rules
+
+### Status
+
+Backlog
+
+### Goal
+
+Define the minimum set of response models and validation rules required to ensure the integrity of the generated CV result.
+
+### Description
+
+With this task, we will define the expected JSON response format returned by the AI.
+
+Furthermore, we will define cleaner rules that remove Markdown code fences and surrounding text from the AI response.
+
+Finally, we will define validation rules that check:
+
+- required JSON keys
+- data types
+- allowed values
+- minimum and maximum lengths
+- consistency between the fit result and CV output
+
+Company research and interview preparation are not included in this task.
+
+### Dependencies
+
+TASK-005 must be completed first.
+
+### Expected JSON Format
+
+```json
+{
+  "fit_assessment": {
+    "level": "strong",
+    "explanation": "Explanation of the candidate's fit.",
+    "relevant_experience": [
+      "Relevant experience supported by the original CV."
+    ],
+    "missing_requirements": []
+  },
+  "cv_patch": {
+    "professional_summary": "Optimized professional summary.",
+    "experience_updates": [
+      {
+        "experience_id": "experience_001",
+        "suggested_job_title": null,
+        "responsibilities": [
+          "Optimized responsibility based on existing CV information."
+        ]
+      }
+    ],
+    "skills_to_highlight": ["Stakeholder management"]
+  },
+  "gap_analysis": {
+    "supported_requirements": ["Requirement supported by the CV."],
+    "reasonably_derived_requirements": [],
+    "unsupported_requirements": [
+      {
+        "requirement": "Unsupported requirement.",
+        "impact": "medium",
+        "preparation_recommendation": "Recommended preparation.",
+        "interview_guidance": "How to discuss the gap honestly."
+      }
+    ]
+  },
+  "warnings": []
+}
+```
+
+For a `poor` fit, `cv_patch` must be `null`.
+
+### Subtasks
+
+- [ ] Define Pydantic models for the core CV optimization response.
+- [ ] Define nested models for fit assessment, CV patch and gap analysis.
+- [ ] Configure models to reject unexpected fields.
+- [ ] Create `ai/cleaner.py`.
+- [ ] Remove Markdown JSON fences from AI responses.
+- [ ] Extract the JSON object from surrounding AI text.
+- [ ] Reject responses that do not contain valid JSON.
+- [ ] Create `ai/validation.py`.
+- [ ] Validate required keys, data types, enums and field lengths.
+- [ ] Validate that referenced experience IDs exist in the original CV.
+- [ ] Validate that highlighted skills are supported by the original CV.
+- [ ] Enforce the poor-fit rule.
+- [ ] Return all validation failure reasons.
+- [ ] Log cleaner failures.
+- [ ] Log validation failures with the complete list of reasons.
+
+### Acceptance Criteria
+
+- [ ] The JSON response format is defined and locked.
+- [ ] `ai/cleaner.py` is created.
+- [ ] `ai/validation.py` is created.
+- [ ] Cleaner returns pure parsed JSON without Markdown or surrounding text.
+- [ ] Cleaner does not invent or repair missing response content.
+- [ ] Cleaner failures are logged.
+- [ ] Validation failures are logged with all detected reasons.
+- [ ] Missing mandatory keys are rejected.
+- [ ] Incorrect data types are rejected.
+- [ ] Invalid field lengths are rejected.
+- [ ] Unsupported enum values are rejected.
+- [ ] Unexpected JSON fields are rejected.
+- [ ] A `poor` fit requires `cv_patch` to be `null`.
+- [ ] A `strong`, `solid` or `stretch` fit requires a valid `cv_patch`.
+
+### Validation Rules
+
+#### `fit_assessment`
+
+- `level`
+  - required string
+  - allowed values: `strong`, `solid`, `stretch`, `poor`
+- `explanation`
+  - required string
+  - 50–1,000 characters
+- `relevant_experience`
+  - required list of strings
+  - minimum one item
+  - each item: 10–500 characters
+- `missing_requirements`
+  - required list of strings
+  - may be empty
+  - each item: 5–300 characters
+
+#### `cv_patch`
+
+- required for `strong`, `solid` and `stretch`
+- must be `null` for `poor`
+- allowed keys:
+  - `professional_summary`
+  - `experience_updates`
+  - `skills_to_highlight`
+
+#### `professional_summary`
+
+- required string
+- 80–700 characters
+
+#### `experience_updates`
+
+- required list
+- minimum one item
+- each item must contain:
+  - valid `experience_id`
+  - optional `suggested_job_title`
+  - `responsibilities`
+- each responsibility:
+  - 20–400 characters
+- maximum six responsibilities per experience entry
+
+#### `skills_to_highlight`
+
+- required list of strings
+- minimum one item
+- maximum 30 items
+- each skill must be supported by the original CV
+
+#### `gap_analysis`
+
+Required keys:
+
+- `supported_requirements`
+- `reasonably_derived_requirements`
+- `unsupported_requirements`
+
+Each unsupported requirement must contain:
+
+- `requirement`
+  - required string
+  - minimum 5 characters
+- `impact`
+  - allowed values: `low`, `medium`, `high`
+- `preparation_recommendation`
+  - required string
+  - minimum 20 characters
+- `interview_guidance`
+  - required string
+  - minimum 20 characters
+
+#### `warnings`
+
+- required list of strings
+- may be empty
+- each warning: 5–300 characters
+
+### Measurements
+
+- Cleaner returns pure parsed JSON.
+- Valid responses pass validation.
+- Validation fails when any mandatory rule is not met.
+- Validation returns all detected failure reasons.
+- Cleaner and validation errors are logged.
+
+### Test Cases
+
+- [ ] Normal flow — a valid raw AI response is cleaned, parsed and validated successfully.
+- [ ] Markdown wrapper — valid JSON inside a Markdown code block is extracted successfully.
+- [ ] Surrounding text — valid JSON surrounded by AI text is extracted successfully.
+- [ ] Missing keys — validation fails and lists the missing keys.
+- [ ] Wrong type — validation fails when a field has an incorrect data type.
+- [ ] Wrong size — validation fails when a field does not meet length or list-size rules.
+- [ ] Invalid enum — validation fails for an unsupported fit level or impact value.
+- [ ] Poor-fit violation — validation fails when a poor-fit response contains a CV patch.
+- [ ] Cleaner failure — a response without valid JSON is rejected and logged.
+
+### Notes
+
+- The cleaner may remove wrappers and surrounding text, but it must not modify the JSON content.
+- Protected CV-field validation will compare the response with the original structured CV.
+- Company research and interview preparation models will be added in later tasks.
+
 ---
 
 # Review
@@ -1405,6 +1324,87 @@ TASK-004 must be completed first.
 - The Streamlit frontend must not access Firestore directly.
 - The MVP does not include user accounts.
 - Credentials must not be stored in a committed `secrets` folder.
+
+## TASK-005 — Integrate Gemini Client, Prompt Configuration and Retry Logic
+
+### Status
+
+Done
+
+### Goal
+
+Integrate Gemini as the AI provider and create a reusable client foundation for future AI workflows.
+
+### Description
+
+The following will be implemented:
+
+- Gemini API client configuration
+- model configuration
+- prompt instructions
+- maximum output token configuration
+- request timeout
+- retry logic with a maximum of three total attempts
+- logging and controlled failure handling
+
+This task only establishes and tests the Gemini integration. CV optimization will be implemented in a later task.
+
+### Dependencies
+
+TASK-018 must be completed first.
+
+### Subtasks
+
+- [x] Install and configure the current Google GenAI Python SDK.
+- [x] Create `ai/ai_client.py`.
+- [x] Create `ai/prompts.py`.
+- [x] Add the Gemini API key to environment configuration.
+- [x] Add the selected model name to `config.py`.
+- [x] Add maximum output token, timeout and retry settings to `config.py`.
+- [x] Create a reusable function for sending requests to Gemini.
+- [x] Implement retry logic with a maximum of three total attempts.
+- [x] Add handling for API failures, timeouts and empty responses.
+- [x] Log each failed attempt and the final workflow failure.
+- [x] Add a simple test prompt to confirm that the client returns a text response.
+- [x] Confirm that the API key is not hardcoded or committed to Git.
+
+### Acceptance Criteria
+
+- [ ] A suitable Gemini model is selected.
+- [ ] `ai/ai_client.py` is created.
+- [ ] `ai/prompts.py` is created.
+- [ ] Gemini API key is securely stored through environment variables.
+- [ ] Model name is configurable.
+- [ ] Maximum output tokens are configured.
+- [ ] Request timeout is configured.
+- [ ] Retry logic allows a maximum of three total attempts.
+- [ ] API failures, timeouts and empty responses are handled and logged.
+- [ ] Final failure after the third unsuccessful attempt is logged.
+- [ ] A successful test request returns a non-empty string.
+- [ ] No Gemini secrets are hardcoded or committed to Git.
+
+### Measurements
+
+- The Gemini client runs without import or runtime errors.
+- A valid test request returns a non-empty text response.
+- A failed request stops after three total attempts.
+- Every failed attempt is logged.
+- Final failure is returned in a controlled form.
+- Gemini credentials do not exist in tracked repository files.
+
+### Test Cases
+
+- [x] Normal flow — a valid test prompt returns a non-empty string.
+- [x] Timeout — the request times out, retries where appropriate and logs the failure.
+- [x] API failure — Gemini returns an error and the attempt is logged.
+- [x] Empty response — an empty response is treated as a failed attempt.
+- [x] Maximum attempts reached — processing stops after three total unsuccessful attempts and logs the final failure.
+
+### Notes
+
+- Prompt instructions belong in `ai/prompts.py`; technical settings belong in `config.py`.
+- This task does not yet generate or validate an optimized CV.
+- Model selection should be based on output quality, structured-output support, availability and expected cost.
 
 ---
 

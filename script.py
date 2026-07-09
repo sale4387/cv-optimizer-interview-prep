@@ -1,31 +1,18 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import sys
 from contextlib import contextmanager
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Callable
-from unittest.mock import patch
-from uuid import uuid4
+from unittest.mock import Mock, patch
 
-from google.api_core.exceptions import DeadlineExceeded
-from pydantic import ValidationError
+from google.genai import errors
 
-import firebase as storage
-
-
-RUN_ID = uuid4().hex[:8]
-
-COMPANY_LABEL = f"Firebase Storage Test {RUN_ID} - NL"
-COMPANY_KEY = storage.normalize_company_key(COMPANY_LABEL)
-
-MALFORMED_COMPANY_KEY = (
-    f"malformed-storage-test-{RUN_ID}-nl"
-)
-NONEXISTENT_COMPANY_KEY = (
-    f"nonexistent-storage-test-{RUN_ID}-nl"
-)
-
-CREATED_APPLICATION_IDS: list[str] = []
+import ai.ai_client as ai_client
+from ai.prompts import SIMPLE_TEST_PROMPT
 
 
 class LogCaptureHandler(logging.Handler):
@@ -38,20 +25,14 @@ class LogCaptureHandler(logging.Handler):
 
 
 @contextmanager
-def capture_storage_logs(
-    level: int = logging.DEBUG,
-):
+def capture_logs():
     handler = LogCaptureHandler()
-    previous_level = storage.logger.level
-
-    storage.logger.setLevel(level)
-    storage.logger.addHandler(handler)
+    ai_client.logger.addHandler(handler)
 
     try:
         yield handler.records
     finally:
-        storage.logger.removeHandler(handler)
-        storage.logger.setLevel(previous_level)
+        ai_client.logger.removeHandler(handler)
 
 
 def assert_log_contains(
@@ -66,332 +47,266 @@ def assert_log_contains(
     assert any(
         expected_text in message
         for message in messages
-    ), (
-        f"Expected log message containing "
-        f"'{expected_text}' was not found."
-    )
+    ), f"Missing expected log: {expected_text}"
 
 
-def application_payload() -> dict:
-    return {
-        "profile_id": "sale",
-        "company_key": COMPANY_KEY,
-        "job_title": "Firebase Test Role",
-        "job_ad_hash": f"hash-{RUN_ID}",
-        "status": "draft",
-        "fit_assessment": {
-            "score": 80,
-        },
-        "tailored_cv": None,
-        "gap_analysis": {
-            "gaps": [],
-        },
-        "interview_prep": None,
-        "base_cv_version": "1.0",
-        "schema_version": "1.0",
-        "prompt_version": "1.0",
-        "model_version": "test-model",
-    }
+def create_mock_client(
+    *,
+    response_text: str | None = None,
+    error: Exception | None = None,
+) -> Mock:
+    client = Mock()
 
-
-def test_company_save_and_read() -> None:
-    company_key = storage.save_company(
-        company_label=COMPANY_LABEL,
-        company_research={
-            "summary": "Initial Firebase test record",
-        },
-        schema_version="1.0",
-        prompt_version="1.0",
-        model_version="test-model",
-    )
-
-    assert company_key == COMPANY_KEY
-
-    loaded_record = storage.get_company_by_key(
-        company_key
-    )
-
-    assert loaded_record is not None
-    assert loaded_record["company_key"] == COMPANY_KEY
-    assert (
-        loaded_record["company_research"]["summary"]
-        == "Initial Firebase test record"
-    )
-
-
-def test_application_save_and_read() -> None:
-    first_application_id = storage.save_application(
-        application_payload()
-    )
-
-    second_application_id = storage.save_application(
-        application_payload()
-    )
-
-    CREATED_APPLICATION_IDS.extend(
-        [
-            first_application_id,
-            second_application_id,
-        ]
-    )
-
-    assert first_application_id
-    assert second_application_id
-    assert (
-        first_application_id
-        != second_application_id
-    )
-
-    loaded_record = storage.get_application(
-        first_application_id
-    )
-
-    assert loaded_record is not None
-    assert (
-        loaded_record["application_id"]
-        == first_application_id
-    )
-    assert loaded_record["company_key"] == COMPANY_KEY
-
-
-def test_invalid_input_rejected() -> None:
-    try:
-        storage.save_application(
-            {
-                "profile_id": "sale",
-            }
-        )
-    except ValidationError:
-        return
-
-    raise AssertionError(
-        "Application missing mandatory fields "
-        "was not rejected."
-    )
-
-
-def test_missing_credentials_logged() -> None:
-    storage.get_firestore_client.cache_clear()
-
-    try:
-        with patch.object(
-            storage.settings,
-            "firebase_credentials_path",
-            "secrets/credentials-do-not-exist.json",
-        ):
-            with capture_storage_logs(
-                logging.ERROR
-            ) as records:
-                try:
-                    storage.get_firestore_client()
-                except FileNotFoundError:
-                    pass
-                else:
-                    raise AssertionError(
-                        "Missing credentials did not "
-                        "raise FileNotFoundError."
-                    )
-
-            assert_log_contains(
-                records,
-                "Firebase credentials were not found",
-            )
-    finally:
-        storage.get_firestore_client.cache_clear()
-
-
-def test_retry_stops_after_three_attempts() -> None:
-    attempts = 0
-
-    def failing_operation() -> None:
-        nonlocal attempts
-        attempts += 1
-
-        raise DeadlineExceeded(
-            "Forced timeout for storage test"
+    if error is not None:
+        client.models.generate_content.side_effect = error
+    else:
+        client.models.generate_content.return_value = (
+            SimpleNamespace(text=response_text)
         )
 
-    with patch.object(
-        storage.time,
-        "sleep",
-        return_value=None,
+    return client
+
+
+def test_live_gemini_request() -> None:
+    result = ai_client.send_gemini_request(
+        SIMPLE_TEST_PROMPT
+    )
+
+    assert isinstance(result, str)
+    assert result.strip()
+    assert "Gemini connection successful" in result
+
+
+def test_timeout_retries_and_logs() -> None:
+    client = create_mock_client(
+        error=TimeoutError("Forced timeout")
+    )
+
+    with (
+        patch.object(
+            ai_client,
+            "get_gemini_client",
+            return_value=client,
+        ),
+        patch.object(
+            ai_client.settings,
+            "gemini_max_attempts",
+            3,
+        ),
+        patch.object(
+            ai_client.time,
+            "sleep",
+            return_value=None,
+        ),
+        capture_logs() as records,
     ):
-        with capture_storage_logs(
-            logging.WARNING
-        ) as records:
-            try:
-                storage._run_with_retry(
-                    operation_name="forced timeout test",
-                    operation=failing_operation,
-                )
-            except DeadlineExceeded:
-                pass
-            else:
-                raise AssertionError(
-                    "Retryable failure did not propagate "
-                    "after maximum attempts."
-                )
+        try:
+            ai_client.send_gemini_request(
+                "Timeout test"
+            )
+        except ai_client.GeminiRequestError:
+            pass
+        else:
+            raise AssertionError(
+                "Timeout did not produce a controlled error."
+            )
 
-    assert attempts == 3, (
-        f"Expected 3 attempts, got {attempts}."
-    )
-
-    assert_log_contains(
-        records,
-        "attempt=3/3",
-    )
-
-    assert_log_contains(
-        records,
-        "failed after maximum attempts",
-    )
+    assert client.models.generate_content.call_count == 3
+    assert_log_contains(records, "attempt=3/3")
 
 
-def test_nonexistent_document_returns_none() -> None:
-    result = storage.get_company_by_key(
-        NONEXISTENT_COMPANY_KEY
-    )
-
-    assert result is None
-
-
-def test_existing_company_is_reused() -> None:
-    original_record = storage.get_company_by_key(
-        COMPANY_KEY
-    )
-
-    assert original_record is not None
-
-    original_created_at = original_record[
-        "created_at"
-    ]
-
-    reused_key = storage.save_company(
-        company_label=COMPANY_LABEL,
-        company_research={
-            "summary": "Updated existing company",
-        },
-        schema_version="1.0",
-        prompt_version="1.1",
-        model_version="test-model",
-    )
-
-    updated_record = storage.get_company_by_key(
-        COMPANY_KEY
-    )
-
-    assert reused_key == COMPANY_KEY
-    assert updated_record is not None
-
-    assert (
-        updated_record["created_at"]
-        == original_created_at
-    )
-
-    assert (
-        updated_record["company_research"]["summary"]
-        == "Updated existing company"
-    )
-
-
-def test_malformed_stored_data_rejected() -> None:
-    client = storage.get_firestore_client()
-
-    document = (
-        client.collection(
-            storage.COMPANIES_COLLECTION
-        )
-        .document(MALFORMED_COMPANY_KEY)
-    )
-
-    document.set(
+def test_api_failure_is_logged() -> None:
+    api_error = errors.ClientError(
+        400,
         {
-            "company_key": MALFORMED_COMPANY_KEY,
-            "display_name": "Malformed Company - NL",
-        }
+            "error": {
+                "code": 400,
+                "status": "INVALID_ARGUMENT",
+                "message": "Forced API failure",
+            }
+        },
     )
 
-    try:
-        storage.get_company_by_key(
-            MALFORMED_COMPANY_KEY
-        )
-    except ValidationError:
-        return
+    client = create_mock_client(error=api_error)
 
-    raise AssertionError(
-        "Malformed stored company data "
-        "was not rejected."
+    with (
+        patch.object(
+            ai_client,
+            "get_gemini_client",
+            return_value=client,
+        ),
+        patch.object(
+            ai_client.time,
+            "sleep",
+            return_value=None,
+        ),
+        capture_logs() as records,
+    ):
+        try:
+            ai_client.send_gemini_request(
+                "API failure test"
+            )
+        except ai_client.GeminiRequestError:
+            pass
+        else:
+            raise AssertionError(
+                "API failure was not controlled."
+            )
+
+    assert client.models.generate_content.call_count == 1
+    assert_log_contains(
+        records,
+        "non-retryable failure",
     )
 
 
-def cleanup_test_records() -> None:
-    storage.get_firestore_client.cache_clear()
+def test_empty_response_is_rejected() -> None:
+    client = create_mock_client(response_text="   ")
 
-    try:
-        client = storage.get_firestore_client()
-
-        for application_id in CREATED_APPLICATION_IDS:
-            (
-                client.collection(
-                    storage.APPLICATIONS_COLLECTION
-                )
-                .document(application_id)
-                .delete()
+    with (
+        patch.object(
+            ai_client,
+            "get_gemini_client",
+            return_value=client,
+        ),
+        patch.object(
+            ai_client.settings,
+            "gemini_max_attempts",
+            3,
+        ),
+        patch.object(
+            ai_client.time,
+            "sleep",
+            return_value=None,
+        ),
+        capture_logs() as records,
+    ):
+        try:
+            ai_client.send_gemini_request(
+                "Empty response test"
+            )
+        except ai_client.GeminiRequestError:
+            pass
+        else:
+            raise AssertionError(
+                "Empty response was not rejected."
             )
 
-        for company_key in {
-            COMPANY_KEY,
-            MALFORMED_COMPANY_KEY,
-        }:
-            (
-                client.collection(
-                    storage.COMPANIES_COLLECTION
-                )
-                .document(company_key)
-                .delete()
+    assert client.models.generate_content.call_count == 3
+    assert_log_contains(
+        records,
+        "EmptyGeminiResponseError",
+    )
+
+
+def test_maximum_attempts_are_enforced() -> None:
+    api_error = errors.ServerError(
+        503,
+        {
+            "error": {
+                "code": 503,
+                "status": "UNAVAILABLE",
+                "message": "Forced retryable failure",
+            }
+        },
+    )
+
+    client = create_mock_client(error=api_error)
+
+    with (
+        patch.object(
+            ai_client,
+            "get_gemini_client",
+            return_value=client,
+        ),
+        patch.object(
+            ai_client.settings,
+            "gemini_max_attempts",
+            3,
+        ),
+        patch.object(
+            ai_client.time,
+            "sleep",
+            return_value=None,
+        ),
+        capture_logs() as records,
+    ):
+        try:
+            ai_client.send_gemini_request(
+                "Maximum attempts test"
+            )
+        except ai_client.GeminiRequestError:
+            pass
+        else:
+            raise AssertionError(
+                "Retryable failure did not stop."
             )
 
-    except Exception as error:
-        print(
-            "[WARNING] Test cleanup failed: "
-            f"{type(error).__name__}: {error}"
+    assert client.models.generate_content.call_count == 3
+
+    assert_log_contains(
+        records,
+        "failed after 3 total attempts",
+    )
+
+
+def test_api_key_is_not_tracked() -> None:
+    result = subprocess.run(
+        ["git", "ls-files"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    tracked_files = result.stdout.splitlines()
+
+    assert ".env" not in tracked_files
+
+    api_key = ai_client.settings.gemini_api_key
+
+    for filename in tracked_files:
+        path = Path(filename)
+
+        if not path.is_file():
+            continue
+
+        try:
+            content = path.read_text(
+                encoding="utf-8"
+            )
+        except UnicodeDecodeError:
+            continue
+
+        assert api_key not in content, (
+            f"Gemini API key found in tracked file: "
+            f"{filename}"
         )
 
 
-TESTS: list[
-    tuple[str, Callable[[], None]]
-] = [
+TESTS: list[tuple[str, Callable[[], None]]] = [
     (
-        "Company record saved and read",
-        test_company_save_and_read,
+        "Valid Gemini request returns text",
+        test_live_gemini_request,
     ),
     (
-        "Application saved with unique ID and read",
-        test_application_save_and_read,
+        "Timeout retries and is logged",
+        test_timeout_retries_and_logs,
     ),
     (
-        "Invalid input rejected",
-        test_invalid_input_rejected,
+        "API failure is controlled and logged",
+        test_api_failure_is_logged,
     ),
     (
-        "Missing credentials handled and logged",
-        test_missing_credentials_logged,
+        "Empty response is rejected",
+        test_empty_response_is_rejected,
     ),
     (
-        "Retryable failure stops after 3 attempts",
-        test_retry_stops_after_three_attempts,
+        "Processing stops after 3 attempts",
+        test_maximum_attempts_are_enforced,
     ),
     (
-        "Nonexistent document returns None",
-        test_nonexistent_document_returns_none,
-    ),
-    (
-        "Existing company record reused",
-        test_existing_company_is_reused,
-    ),
-    (
-        "Malformed stored data rejected",
-        test_malformed_stored_data_rejected,
+        "Gemini API key is not tracked",
+        test_api_key_is_not_tracked,
     ),
 ]
 
@@ -401,14 +316,14 @@ def main() -> int:
     failed = 0
 
     original_handlers = list(
-        storage.logger.handlers
+        ai_client.logger.handlers
     )
-    original_propagate = storage.logger.propagate
-    original_level = storage.logger.level
+    original_propagate = (
+        ai_client.logger.propagate
+    )
 
-    storage.logger.handlers = []
-    storage.logger.propagate = False
-    storage.logger.setLevel(logging.DEBUG)
+    ai_client.logger.handlers = []
+    ai_client.logger.propagate = False
 
     try:
         for test_name, test_function in TESTS:
@@ -424,15 +339,13 @@ def main() -> int:
             else:
                 passed += 1
                 print(f"[PASS] {test_name}")
-
     finally:
-        cleanup_test_records()
-
-        storage.logger.handlers = original_handlers
-        storage.logger.propagate = (
+        ai_client.logger.handlers = (
+            original_handlers
+        )
+        ai_client.logger.propagate = (
             original_propagate
         )
-        storage.logger.setLevel(original_level)
 
     print()
     print(

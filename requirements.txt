@@ -5,3 +5,5 @@ uvicorn
 slowapi
 pydantic-settings
 firebase-admin
+google-genai
+httpx

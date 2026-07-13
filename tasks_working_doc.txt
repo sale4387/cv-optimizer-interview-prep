@@ -1,4 +1,4 @@
-## TASK-010 — Implement Targeted Revision Workflow and Review UI
+## TASK-013 — Implement Interview Preparation Generation
 
 ### Status
 
@@ -6,75 +6,46 @@ Backlog
 
 ### Goal
 
-This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
+This task completes the 3rd pillar of this tool which is generating potential interview questions and advised replies.
 
 ### Description
 
-In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
-
-The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
+Based on following provided data: User's cv, company profile, job description AI should create a comprahensive resource in form of 10 - 15 potential interveiw questions and 1-3 possible answers, whcih will help user better prepare for interview.
 
 ### Dependencies
 
-TASK-009 must be completed first.
+Task 012 should be completed
 
 ### Subtasks
 
-- [ ] Add separate revision instructions to `ai/prompts.py`.
-- [ ] Display `Request changes` and `Accept CV` buttons on the preview page.
-- [ ] Allow comments only on sections that may be revised.
-- [ ] Allow each comment to be edited or removed.
-- [ ] Add a button to cancel the revision request.
-- [ ] Add a `Make changes` button.
-- [ ] Build the targeted revision AI call.
-- [ ] Send the existing CV, selected sections and user comments to Gemini.
-- [ ] Request only the selected sections in the AI response.
-- [ ] Pass the response through the cleaner and TASK-009 validation.
-- [ ] Merge validated sections with the current CV.
-- [ ] Save the revised result as the latest draft version.
-- [ ] Keep the CV in `draft` status after revisions.
-- [ ] Change the status to `accepted` only after the user clicks `Accept CV`.
-- [ ] Enable browser PDF export only for an accepted CV.
-- [ ] Log revision requests, completions and failures.
+- [ ] Subtask 1
+- [ ] Subtask 2
+- [ ] Subtask 3
 
 ### Acceptance Criteria
 
-- [ ] The initial CV result is available with status `draft`.
-- [ ] The preview displays `Request changes` and `Accept CV`.
-- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
-- [ ] Comments can be edited and removed.
-- [ ] The user can cancel the revision process.
-- [ ] Clicking `Make changes` starts the targeted revision workflow.
-- [ ] AI returns only the selected sections.
-- [ ] Revised sections are cleaned, validated and merged.
-- [ ] Sections that were not selected remain unchanged.
-- [ ] A revised CV is saved as the latest draft version.
-- [ ] Clicking `Accept CV` changes the status to `accepted`.
-- [ ] PDF export is available only after acceptance.
+- Report consists 10-15 questions relevant to 3 dimensional input which is cv, company, job add
+- Questions should avoid generic questions: tell me about your self, your 3 top features, where you see yourselves in...
+- Questions should be built around experience from, expectations from job ad, latest trechnologies around job scope
+- Each question should have 2-3 advised replies
+- Questions should be connected with applications via inteview_prep field in firebase
 
 ### Measurements
 
-- Review and acceptance buttons are displayed and work.
-- Only editable sections can receive revision comments.
-- Comments can be added, edited and removed.
-- A successful revision updates only the selected sections.
-- Revised results remain in draft status.
-- Acceptance updates the Firestore status to `accepted`.
-- Accepted CVs can be saved through browser Print / Save as PDF.
+How will success be measured?
+
+- Each report has 10-15 questions
+- Generic questions such as tell me about your self, your 3 top features, where you see yourselves in... are not displayed
+- Questions are not duplicated
+- Each question has relevance to company, job requirements or cv
 
 ### Test Cases
 
-- [ ] Normal flow — the user accepts the CV and the database status changes to `accepted`.
-- [ ] Normal flow — the user adds, edits and removes comments on editable sections.
-- [ ] Normal flow — the user requests changes and receives an updated draft CV.
-- [ ] Normal flow — the user cancels the revision process without changing the CV.
-- [ ] Expected failure — AI returns an unrequested section.
-- [ ] Expected failure — revision response fails validation.
-- [ ] Expected failure — Firestore cannot save the revised draft.
-- [ ] Expected failure — PDF export is attempted while the CV is still in draft status.
+- [ ] Normal flow
+- [ ] Invalid input
+- [ ] Expected failure
+- [ ] Relevant edge case
 
 ### Notes
 
-- A revision does not automatically accept the CV.
-- The user may repeat the review and revision process before acceptance.
-- Full revision history and side-by-side comparison are outside the MVP.
+Only include risks, open questions or important implementation constraints.

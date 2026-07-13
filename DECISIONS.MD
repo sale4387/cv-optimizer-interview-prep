@@ -559,7 +559,7 @@ Review this decision if the separate backend creates significant deployment comp
 
 ### Status
 
-Accepted
+Replaced by DECISION-014
 
 ### Context
 
@@ -636,12 +636,9 @@ The frontend must provide:
 
 ### Review Later
 
-Review this decision when:
+This decision was reviewed after browser Print / Save as PDF produced inconsistent Streamlit layout and page-break behavior.
 
-- the main workflow is stable
-- one-click export becomes important
-- browser output proves inconsistent
-- V2 development begins
+It was replaced by DECISION-014 — Direct PDF Generation for Accepted CVs.
 
 ---
 
@@ -1286,6 +1283,10 @@ Review this decision if:
 
 Accepted
 
+### Review Note
+
+This decision remains accepted, but will be expanded by DECISION-015 toward a CV-first interface with inline review of AI-suggested changes.
+
 ### Context
 
 AI-generated CV changes and interview preparation material may be structurally valid but still fail to match:
@@ -1410,13 +1411,13 @@ The planned main AI workflow includes several outputs:
 - optimized CV
 - company research
 - interview preparation
-- browser-based PDF export
+- direct PDF export for accepted CVs
 
 Developing and testing all outputs at the same time would make it harder to identify problems and validate whether the core product value works.
 
 CV optimization is the central product feature. Company research and interview preparation provide additional value but are not required to prove that the main CV workflow works.
 
-Browser Print / Save as PDF is also part of the MVP, but formatting problems should not block development of the remaining product features.
+Direct PDF export is now part of the MVP, but visual PDF polish should not block development of the remaining product features.
 
 ### Options Considered
 
@@ -1442,14 +1443,14 @@ Browser Print / Save as PDF is also part of the MVP, but formatting problems sho
    - browser-specific formatting issues may delay unrelated features
    - excessive time may be spent polishing output before validating the complete product
 
-3. **Complete the main CV optimization workflow first, then add supporting features without allowing browser PDF quality to block progress**
+3. **Complete the main CV optimization workflow first, then add supporting features without allowing PDF visual polish to block progress**
 
    Pros:
    - validates the core product early
    - creates a clear implementation sequence
    - simplifies testing and debugging
    - allows company research and interview preparation to be added incrementally
-   - prevents non-critical PDF formatting problems from blocking development
+   - prevents non-critical PDF styling problems from blocking development
 
    Cons:
    - intermediate versions will not contain the complete product
@@ -1470,13 +1471,13 @@ Development will first complete the core CV optimization flow:
 
 Company research and interview preparation will be added after the core CV workflow is functional and tested.
 
-Browser Print / Save as PDF will be implemented as part of the CV workflow, but imperfect PDF formatting will not block development of later features if:
+Direct PDF generation will be implemented as part of the CV workflow, but imperfect visual styling will not block development of later features if:
 
-- the document can be saved successfully
+- the document can be downloaded successfully
 - the content is complete
 - the output remains readable and usable
 
-PDF styling may be improved later, or the decision to use browser export may be reviewed in favor of direct PDF generation.
+PDF styling may be improved later after the main workflow and review flow are stable.
 
 ### Reasoning
 
@@ -1498,12 +1499,11 @@ The first working version will not contain all planned MVP features.
 
 The main AI contract may need to be expanded after the CV workflow is already functional.
 
-Browser-generated PDF output may temporarily have:
+Generated PDF output may temporarily have:
 
 - imperfect page breaks
-- browser-specific differences
 - minor layout problems
-- less polished formatting than direct PDF generation
+- less polished formatting than the final desired design
 
 These limitations are accepted as long as the document remains readable and usable.
 
@@ -1532,7 +1532,7 @@ Review this decision when:
 - the core CV workflow is stable
 - browser export produces consistently poor results
 - PDF formatting significantly reduces real usability
-- direct PDF generation becomes easier than continued browser-specific fixes
+- the generated PDF remains visually below the desired level
 - all supporting MVP features are integrated and final product polish begins
 
 ## DECISION-013 — Firestore Persistence for Company Research and Application Results
@@ -1714,6 +1714,222 @@ Review this decision if:
 ---
 
 
+
+## DECISION-014 — Direct PDF Generation for Accepted CVs
+
+### Status
+
+Accepted
+
+### Context
+
+The MVP originally planned to use the browser’s Print / Save as PDF functionality.
+
+During implementation, browser-based export produced inconsistent results with Streamlit layout, page breaks and print styling.
+
+The application already stores validated structured CV data, which makes direct PDF generation possible without relying on the rendered Streamlit page.
+
+### Options Considered
+
+1. **Continue using browser Print / Save as PDF**
+
+   Pros:
+   - no additional PDF logic
+   - uses the existing preview page
+   - simpler original plan
+
+   Cons:
+   - inconsistent layout
+   - less control over page breaks
+   - manual user action required
+   - weaker user experience
+
+2. **Generate PDF directly from the accepted structured CV data**
+
+   Pros:
+   - one-click download
+   - more predictable output
+   - independent from Streamlit browser layout
+   - easier to connect export to accepted CV status
+   - better MVP user experience
+
+   Cons:
+   - requires PDF rendering code
+   - requires layout and font handling
+   - visual polish may need later improvement
+
+3. **Use an external PDF generation service**
+
+   Pros:
+   - potentially stronger layout capabilities
+   - could support advanced templates later
+
+   Cons:
+   - additional service dependency
+   - possible cost
+   - unnecessary for the controlled MVP
+
+### Decision
+
+The MVP will generate a downloadable PDF directly from the accepted structured CV data.
+
+PDF download is enabled only after the user accepts the CV.
+
+Draft CVs may be previewed and revised, but should not be exported as final PDFs.
+
+### Reasoning
+
+Direct PDF generation provides a better and more controlled export flow than browser printing.
+
+It also supports the product rule that only accepted CVs become final exportable documents.
+
+The current PDF output is considered usable for V1 if:
+
+- the content is complete
+- Serbian characters are supported
+- the document opens successfully
+- the document stays within the required page limit
+- minor visual imperfections do not prevent use
+
+### Tradeoffs
+
+The PDF generator adds implementation and maintenance complexity.
+
+The first generated PDF may still require cosmetic improvements.
+
+Styling and template polish are intentionally separated from the core workflow.
+
+### Consequences
+
+The application requires:
+
+- PDF generation logic
+- PDF export controls
+- accepted/draft status enforcement
+- PDF error handling
+- tests for valid PDF creation
+
+Browser Print / Save as PDF is no longer the primary export method.
+
+Future UI and PDF polish tasks should improve visual quality without changing the core export decision.
+
+### Review Later
+
+Review this decision if:
+
+- generated PDF quality remains below acceptable professional standards
+- multiple templates are required
+- Word export becomes necessary
+- a more robust PDF rendering approach becomes justified
+
+---
+
+## DECISION-015 — CV-First Interface and Inline Change Review Direction
+
+### Status
+
+Accepted
+
+### Context
+
+The current implemented workflow separates optimization input, result preview and review actions.
+
+The user experience can be improved by making the CV itself the primary page and showing AI-suggested changes directly against the current CV content.
+
+This would make it easier for the user to understand what changed before accepting the final CV or requesting revisions.
+
+### Options Considered
+
+1. **Keep the current separate optimize page and ready modal**
+
+   Pros:
+   - already implemented
+   - simple flow
+   - lower short-term development effort
+
+   Cons:
+   - the user does not immediately see what changed
+   - the result feels more like a black box
+   - review is less connected to the original CV
+
+2. **Use a CV-first interface with inline suggested changes**
+
+   Pros:
+   - the current CV is always visible
+   - AI changes are transparent
+   - review is easier and more trustworthy
+   - request-change actions can be attached to specific editable content
+
+   Cons:
+   - requires UI redesign
+   - requires more detailed review state
+   - requires finer mapping between original CV content and AI suggestions
+
+### Decision
+
+The product direction is to move toward a CV-first interface.
+
+The main page should show the current CV as the primary view.
+
+The side menu should contain:
+
+- optimization input
+- company and country fields
+- job title
+- job ad text
+- My Applications navigation
+
+After optimization, the application should not rely on a `Your CV is ready` modal as the main transition.
+
+Instead, AI-suggested changes should be shown inline against the current CV content where possible.
+
+Editable content should support review and revision actions at a more granular level, including:
+
+- professional summary
+- responsibility bullets
+- key achievement bullets
+- skills or highlights where supported
+
+The existing accept and request-change concepts remain valid, but should be adapted to the inline review experience.
+
+### Reasoning
+
+A CV-first interface better supports user trust and human review.
+
+The user can compare the existing text with AI-suggested changes before deciding whether to accept, keep or revise content.
+
+This matches the product principle that AI should assist the user, not silently replace the user’s judgment.
+
+### Tradeoffs
+
+This is not a small cosmetic change.
+
+It affects:
+
+- navigation
+- page layout
+- preview rendering
+- revision controls
+- state handling
+- how `cv_patch` is displayed
+
+The change should be handled as a separate UI task rather than mixed into the existing backend workflow.
+
+### Consequences
+
+A new task should be added for the CV-first homepage and inline review UI.
+
+Existing backend workflow and validation logic remain useful because they already produce a structured `cv_patch`.
+
+The frontend will need to display that patch more transparently instead of only rendering the final tailored CV.
+
+### Review Later
+
+Review this decision after the first inline review version is implemented and tested with real generated CV results.
+
+---
+
+
 # Rejected Decisions
 
 No standalone rejected decisions are currently recorded.
@@ -1724,7 +1940,7 @@ Rejected alternatives are documented inside each accepted decision.
 
 # Replaced Decisions
 
-No decisions have been formally replaced.
+DECISION-005 was replaced by DECISION-014 after browser Print / Save as PDF produced inconsistent Streamlit layout and page-break results.
 
 DECISION-003 and DECISION-010 were updated before implementation to reflect the final MVP input, persistence and AI workflow design.
 
@@ -1738,7 +1954,7 @@ DECISION-003 and DECISION-010 were updated before implementation to reflect the 
 | DECISION-002 | Pasted Job Ad Text Instead of Job Ad URL                                    | Accepted |      | MVP constraint       |
 | DECISION-003 | Structured Company Identifier Without Company URL                           | Accepted |      | Input design         |
 | DECISION-004 | FastAPI Backend Instead of Streamlit-Only Application                       | Accepted |      | Architecture         |
-| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation                  | Accepted |      | MVP export           |
+| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation                  | Replaced |      | Replaced by DECISION-014 |
 | DECISION-006 | No AI Provider Fallback in MVP                                              | Accepted |      | Gemini only          |
 | DECISION-007 | AI Output Must Be JSON Validated Before Rendering                           | Accepted |      | Reliability          |
 | DECISION-008 | Poor Fit Stops the Tailoring Workflow                                       | Accepted |      | No MVP override      |
@@ -1747,3 +1963,5 @@ DECISION-003 and DECISION-010 were updated before implementation to reflect the 
 | DECISION-011 | User Review and Section-Level Control                                       | Accepted |      | Human-in-the-loop UX |
 | DECISION-012 | Complete the CV Optimization Workflow Before Adding Supporting Features     | Accepted |      | Delivery sequence    |
 | DECISION-013 | Firestore Persistence for Company Research and Application Results           | Accepted |      | Persistence          |
+| DECISION-014 | Direct PDF Generation for Accepted CVs                                      | Accepted |      | Export               |
+| DECISION-015 | CV-First Interface and Inline Change Review Direction                       | Accepted |      | UX direction         |

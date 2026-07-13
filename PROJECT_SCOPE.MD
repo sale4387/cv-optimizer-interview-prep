@@ -67,6 +67,7 @@ The product should become a practical everyday tool for job seekers.
 - interview preparation material
 - likely interview questions with two or three suggested answers
 - saved structured application result
+- directly generated PDF version of the accepted CV
 
 ## V2 — Expanded Input and Export
 
@@ -84,7 +85,7 @@ The product should become a practical everyday tool for job seekers.
 - optimized CV
 - company background
 - interview preparation material
-- directly generated PDF version of the CV
+- additional export options or CV templates
 
 ## V3 — Job Discovery
 
@@ -120,30 +121,32 @@ No additional user groups are currently planned for the MVP.
 
 1. The user finds a job ad they are considering.
 2. The user opens the application.
-3. The application loads the predefined CV profile.
-4. The user selects an existing company from the dropdown.
-5. If the company does not exist, the user enters a new company in the format `Company Name - ISO2 Country Code`.
-6. The user pastes the full job ad text.
-7. The user starts the workflow.
-8. The system evaluates the candidate’s fit for the role.
-9. If the fit is poor, the workflow stops and returns:
+3. The application loads and displays the predefined CV profile as the primary view.
+4. The user opens the optimization form from the side menu.
+5. The user selects an existing company from the dropdown.
+6. If the company does not exist, the user enters a new company in the format `Company Name - ISO2 Country Code`.
+7. The user pastes the full job ad text.
+8. The user starts the workflow.
+9. The system evaluates the candidate’s fit for the role.
+10. If the fit is poor, the workflow stops and returns:
    - an explanation
    - the main missing requirements
    - recommendations for improving future eligibility
 
-10. If the fit is sufficient, the system generates:
+11. If the fit is sufficient, the system generates:
     - an optimized CV
     - a fit explanation
     - gap analysis
     - company research
     - interview preparation material
 
-11. The validated application result is stored for future reuse.
-12. The user reviews the complete result.
-13. The user may request a revision of a specific section by adding a comment.
-14. The system revises only the selected section.
-15. The user saves the CV and preparation material through the browser’s Print / Save as PDF functionality.
-16. The user applies for the job and uses the preparation material before the interview.
+12. The validated application result is stored for future reuse.
+13. The user reviews the complete result.
+14. The planned review direction is to show AI-suggested changes inline against the current CV before the final CV is accepted.
+15. The user may request revision of editable CV content by adding comments.
+16. The system revises only the selected content.
+17. After acceptance, the user downloads a directly generated PDF version of the CV.
+18. The user applies for the job and uses the preparation material before the interview.
 
 ---
 
@@ -259,9 +262,11 @@ Each question should include two or three suggested answer directions that the u
 
 The complete result is shown to the user before export.
 
-The user may select a specific section and enter a comment explaining what should be changed.
+The planned review direction is a CV-first interface: the user sees the current CV and AI-suggested changes inline before accepting the final result.
 
-A follow-up AI request should revise only the selected section and should not regenerate the complete result.
+The user may request changes for editable CV content, including summary text, responsibilities, key achievements and other supported editable elements.
+
+A follow-up AI request should revise only the selected content and should not regenerate the complete result.
 
 ## Data Storage and Reuse
 
@@ -295,9 +300,9 @@ The MVP does not include user accounts or a full history-management dashboard.
 
 ## Export
 
-The application displays a print-friendly web version of the CV and interview preparation material.
+The application generates a downloadable PDF version of the accepted CV from the stored structured CV data.
 
-The user exports the documents using the browser’s built-in Print / Save as PDF option.
+The current PDF is considered usable for V1, while final visual polish and template improvements may be handled later.
 
 ## Basic Reliability
 
@@ -324,7 +329,7 @@ The following capabilities are intentionally excluded from the MVP:
 - scraping LinkedIn job ads
 - importing a LinkedIn profile
 - direct application submission
-- direct PDF generation
+- PDF styling improvements and additional templates
 - user accounts
 - user-facing application history dashboard
 - automated job alerts
@@ -454,7 +459,7 @@ The MVP is considered complete when:
 - AI output is validated before rendering
 - stored data is validated before reuse
 - invalid output fails safely
-- the CV can be saved as PDF through the browser
+- the accepted CV can be downloaded as a directly generated PDF
 - the complete main workflow can be demonstrated without editing the code
 
 ---

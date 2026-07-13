@@ -74,7 +74,7 @@ It is responsible for:
 - showing company research
 - showing interview preparation material
 - allowing section-level revision requests
-- allowing the user to print/save the final CV as PDF from the browser
+- allowing the user to download an accepted final CV as a directly generated PDF
 
 Existing companies are shown in a dropdown.
 
@@ -89,6 +89,15 @@ Example:
 ```text
 Bird - NL
 ```
+
+
+Planned UI direction:
+
+- the default page should show the base CV first
+- the optimization form and `My Applications` navigation should live in the sidebar
+- after optimization, suggested changes should be shown inline against the existing CV content
+- the completion modal should be replaced by the CV preview updating directly
+- change requests should later be available on each editable CV element, including summary, responsibility bullets and achievement bullets
 
 ---
 
@@ -265,7 +274,7 @@ The storage layer allows the system to:
 - avoid unnecessary search calls
 - reopen saved tailored CV versions
 - reuse complete application results when the input is an exact match
-- support future direct PDF rendering
+- support direct PDF rendering from accepted application records
 
 Firestore access must go through the FastAPI backend.
 
@@ -308,7 +317,7 @@ Future versions may add:
 
 - job board APIs
 - CV parsing services
-- direct PDF generation services
+- PDF styling or template services
 - email notification services
 
 ---
@@ -391,7 +400,7 @@ project/
 - render company research
 - render interview preparation
 - allow section revision requests
-- support browser PDF export
+- support direct PDF download after CV acceptance
 
 ### Inputs
 
@@ -587,7 +596,7 @@ project/
 23. The user may request a revision of one section.
 24. The backend runs the targeted revision workflow.
 25. Only the selected section is replaced.
-26. The user can print/save the CV as PDF from the browser.
+26. After acceptance, the user can download the CV as a directly generated PDF.
 
 ---
 
@@ -950,19 +959,20 @@ The following compromises were accepted for the MVP.
 
 ---
 
-## Browser Print/Save as PDF Instead of Direct PDF Generation
+## Direct PDF Generation Instead of Browser Print/Save as PDF
 
 ### Reason
 
-- avoids PDF rendering complexity
-- allows faster MVP delivery
-- remains usable for the main workflow
+- browser printing produced inconsistent page breaks and layout results in Streamlit
+- direct PDF generation creates a predictable downloadable output
+- the PDF can be generated from the validated and accepted structured CV data
+- the result is easier to reopen and export from saved application records
 
 ### Tradeoff
 
-- less control over layout
-- manual browser action required
-- browser-specific differences may exist
+- more implementation complexity
+- PDF styling must be maintained separately from the Streamlit preview
+- final visual polish may require a dedicated later task
 
 ---
 
@@ -1006,7 +1016,7 @@ The following compromises were accepted for the MVP.
 - reduce unnecessary AI calls
 - save tailored CV versions
 - save application results
-- support future PDF rendering
+- support direct PDF rendering from accepted application records
 
 ### Tradeoff
 
@@ -1024,7 +1034,7 @@ Potential future improvements:
 1. Upload CV as PDF or Word document.
 2. Parse a LinkedIn profile if technically and legally possible.
 3. Accept a job ad URL instead of pasted text.
-4. Generate PDF directly inside the application.
+4. Improve PDF styling and templates.
 5. Add user accounts.
 6. Add a user-facing application history dashboard.
 7. Add side-by-side CV version comparison.

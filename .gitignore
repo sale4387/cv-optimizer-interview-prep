@@ -7,3 +7,6 @@ ffmpeg/
 .DS_Store
 .vscode/
 secrets/
+test_cases_results_log.txt
+tasks_working_doc.txt
+job_add_test.txt

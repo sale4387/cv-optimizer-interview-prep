@@ -38,61 +38,6 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-### Notes
-
-- `My Applications` is a simple saved-results view, not a full history dashboard.
-- Final PDF styling may be improved later if the document is already readable and usable.
-
-## TASK-011 — Perform Mid-Project Refactoring and Architecture Review
-
-### Status
-
-Backlog
-
-### Goal
-
-What should this task achieve and why is it needed?
-
-### Description
-
-What is included in this task?
-
-What is explicitly not included?
-
-### Dependencies
-
-Which tasks or decisions must be completed first?
-
-### Subtasks
-
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
-
-### Acceptance Criteria
-
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
-
-### Measurements
-
-How will success be measured?
-
-- Metric 1
-- Metric 2
-
-### Test Cases
-
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
-
-### Notes
-
-Only include risks, open questions or important implementation constraints.
-
 ## TASK-012 — Implement Company Research and Search Grounding
 
 ### Status
@@ -101,47 +46,247 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Generate reusable company intelligence that helps the user understand the target company and prepare for a stronger interview.
 
 ### Description
 
-What is included in this task?
+This task implements the company research pillar of the product.
 
-What is explicitly not included?
+Based on the company name and ISO2 country code, the system should generate a structured company intelligence report using search-grounded AI.
+
+The report should not be a generic company profile.
+
+It should help the user prepare for a specific job application by explaining:
+
+- what the company does
+- which products, services or platforms matter
+- who the company serves
+- who the company competes with
+- what recent events may matter for an interview
+- what public employee sentiment suggests, when available
+- what risks, limitations or uncertainties should be considered
+- which talking points and questions the candidate can use during interview preparation
+
+The report must be reusable.
+
+When the same company is used again, the system should first check Firestore. If a valid company report exists and is less than 3 months old, the stored report should be reused. If no valid report exists, or if the report is older than 3 months, the system should run a new search-grounded company research workflow.
+
+The report must clearly separate verified information from limited, uncertain or unavailable information.
+
+The AI must not invent company facts, customers, financial information, employee sentiment, news or competitors.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-010 must be completed.
+- Firestore persistence must be available.
+- Gemini client must be available.
+- Search grounding must be available.
+- AI response cleaner and validation flow must be available.
+- Company key normalization must be available.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Define company research response model.
+- [ ] Define company research validation rules.
+- [ ] Add company research prompt with search-grounding instructions.
+- [ ] Add strict rules against invented company facts.
+- [ ] Add source and limitation requirements to the prompt.
+- [ ] Add freshness rule for stored company reports.
+- [ ] Implement Firestore lookup by normalized company key.
+- [ ] Reuse stored company report when it is valid and less than 3 months old.
+- [ ] Regenerate company report when no report exists or when the stored report is older than 3 months.
+- [ ] Validate AI output before storing.
+- [ ] Store validated company research in the `companies` collection.
+- [ ] Store generated timestamp and valid-until timestamp.
+- [ ] Add `Companies` section to the left side menu.
+- [ ] List saved company reports from newest to oldest.
+- [ ] Allow opening a saved company report as a preview.
+- [ ] Display company report in a readable interview-preparation format.
+- [ ] Connect company research to the main application workflow.
+- [ ] Ensure the main workflow can use stored company research without a new grounded AI call.
+- [ ] Log cache hits, cache misses, refreshes, validation failures, AI failures and Firestore failures.
+
+### Expected JSON Format
+
+```json
+{
+  "company_key": "company-name-iso2",
+  "display_name": "Company Name - ISO2",
+  "country_code": "ISO2",
+  "research_status": "complete | limited",
+  "confidence_level": "high | medium | low",
+  "short_description": "Short factual description of the company.",
+  "industry": {
+    "primary_industry": "Main industry.",
+    "secondary_industries": ["Additional relevant industry."],
+    "business_model": "Short factual description of how the company appears to make money."
+  },
+  "products_and_services": [
+    {
+      "name": "Product, service or platform name.",
+      "type": "product | service | platform | solution | unknown",
+      "description": "Short factual description.",
+      "why_it_matters_for_interview": "Why this may matter when preparing for the interview."
+    }
+  ],
+  "customers_and_market": {
+    "known_public_customers": [
+      {
+        "name": "Customer name.",
+        "context": "Why this customer is relevant."
+      }
+    ],
+    "customer_types": ["Customer segment or type."],
+    "target_markets": ["Market, region or segment."],
+    "limitations": "Explain if named customers or markets are not public or only partly available."
+  },
+  "competitors": [
+    {
+      "name": "Competitor name.",
+      "reason": "Why this company is a relevant competitor.",
+      "comparison_note": "Short note on how the target company appears different."
+    }
+  ],
+  "recent_developments": [
+    {
+      "date": "YYYY-MM-DD or YYYY-MM if available",
+      "type": "news | acquisition | merger | funding | product | partnership | leadership | financial | other",
+      "title": "Development title.",
+      "summary": "Short factual summary.",
+      "interview_relevance": "Why this may matter for interview preparation."
+    }
+  ],
+  "public_company_information": {
+    "is_public_company": true,
+    "ticker": "Ticker if available.",
+    "exchange": "Exchange if available.",
+    "summary": "Short factual summary or limitation.",
+    "limitations": "Explain if stock or financial information is not applicable or not available."
+  },
+  "employee_sentiment": {
+    "signal": "positive | mixed | negative | insufficient_public_data",
+    "summary": "Short summary of publicly available employee sentiment themes.",
+    "positive_themes": ["Publicly reported positive theme."],
+    "negative_themes": ["Publicly reported negative theme."],
+    "interview_caution": "How the candidate should treat this information carefully.",
+    "limitations": "Explain source limitations."
+  },
+  "interview_intelligence": {
+    "talking_points": [
+      {
+        "topic": "Useful company-specific topic.",
+        "why_it_matters": "Why this topic may be useful.",
+        "how_to_use": "How the candidate may mention it in an interview."
+      }
+    ],
+    "questions_to_ask": [
+      {
+        "question": "Question the candidate may ask the interviewer.",
+        "reason": "Why this is a useful question."
+      }
+    ],
+    "risks_to_prepare_for": [
+      {
+        "risk": "Potential concern, uncertainty or business risk.",
+        "preparation_note": "How the candidate should prepare for this topic."
+      }
+    ]
+  },
+  "sources": [
+    {
+      "title": "Source title.",
+      "url": "Source URL.",
+      "publisher": "Publisher or website name.",
+      "source_type": "official | news | financial | review | other",
+      "supports": ["Which parts of the report this source supports."],
+      "accessed_at": "YYYY-MM-DD"
+    }
+  ],
+  "limitations": ["Important limitation, missing data or uncertainty."],
+  "generated_at": "ISO datetime",
+  "valid_until": "ISO datetime"
+}
+```
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] The system can generate a company research report from a valid company name and ISO2 country code.
+- [ ] The system checks Firestore before calling the AI research workflow.
+- [ ] A stored report is reused when it is valid and less than 3 months old.
+- [ ] A new report is generated when no valid report exists or when the stored report is older than 3 months.
+- [ ] The generated report is stored only after validation passes.
+- [ ] The report contains at minimum:
+  - company key
+  - display name
+  - country code
+  - research status
+  - confidence level
+  - short description
+  - industry
+  - products and services
+  - customer types or known public customers
+  - competitors
+  - interview talking points
+  - sources
+  - generated timestamp
+  - valid-until timestamp
+- [ ] The report clearly marks unavailable, uncertain or limited information.
+- [ ] The report does not invent customers, competitors, employee sentiment, stock information, recent news or company facts.
+- [ ] Each important factual section is supported by at least one source or marked as limited.
+- [ ] Employee sentiment is treated as a public signal, not as a definitive rating.
+- [ ] Employee sentiment is skipped or marked as insufficient when reliable public information is not available.
+- [ ] Public-company fields are filled only when the company is actually public.
+- [ ] The report includes interview-useful talking points.
+- [ ] The report includes useful questions the candidate may ask the interviewer.
+- [ ] The report includes risks or uncertainty notes where relevant.
+- [ ] Saved company reports are visible from a `Companies` section in the left side menu.
+- [ ] Saved company reports can be opened as previews.
+- [ ] The main application workflow can use stored company research without making a new grounded AI call.
+- [ ] AI failures, invalid output, Firestore failures and limited research results are handled safely.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- User can access a company report that is not older than 3 months.
+- Stored company research is reused for the same company key.
+- Report contains the minimum required company intelligence fields.
+- Report is useful for interview preparation, not only general company reading.
+- Report includes talking points and questions to ask.
+- Report clearly marks limited or unavailable fields.
+- Key factual claims can be traced to listed sources or verified through a manual search.
+- The system avoids repeated grounded AI calls when a valid stored report exists.
+- The user can open saved company reports from the UI.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Normal flow: company is not in Firestore; system generates, validates, stores and displays the report.
+- [ ] Cache hit: company exists in Firestore and report is less than 3 months old; system reuses stored report.
+- [ ] Refresh flow: company exists in Firestore but report is older than 3 months; system generates a fresh report.
+- [ ] Invalid company input is rejected before research starts.
+- [ ] AI response with invalid JSON is rejected.
+- [ ] AI response with missing required fields is rejected.
+- [ ] AI response without sources is rejected unless the report is explicitly marked as limited.
+- [ ] AI response with unsupported named customers is rejected where validation can detect it.
+- [ ] AI response with public-company information for a private company is rejected where validation can detect it.
+- [ ] Employee sentiment is marked as insufficient when reliable public information is unavailable.
+- [ ] Company with limited public data produces a limited report instead of fake data.
+- [ ] Search grounding failure returns a controlled error.
+- [ ] Firestore read failure returns a controlled error.
+- [ ] Firestore write failure returns a controlled error.
+- [ ] Saved company report can be opened from the `Companies` page.
+- [ ] Main application workflow receives stored company research without a new research call.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- The report should be short enough to use before an interview.
+- The report should not become a long business dossier.
+- Customers may not always be public; customer types are acceptable when named customers cannot be verified.
+- Competitors should be relevant, not a random list.
+- Recent developments should be included only when they are relevant or notable.
+- Employee sentiment should be handled carefully because review platforms may be incomplete, biased, outdated or partially inaccessible.
+- Direct quotes from sources should be avoided unless short and necessary.
+- This task should not include interview-question generation; that belongs to TASK-013.
 
 ## TASK-013 — Implement Interview Preparation Generation
 
@@ -151,49 +296,178 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Generate personalized interview preparation that helps the user defend and explain the tailored CV in the context of the target company and job ad.
 
 ### Description
 
-What is included in this task?
+This task implements the third pillar of the product: interview preparation.
 
-What is explicitly not included?
+Based on the user’s original CV, tailored CV, company research and job advertisement, the AI should generate a practical interview preparation report.
+
+The report should not be a generic list of interview questions.
+
+It should help the user prepare for the specific situation created by the application workflow:
+
+- what the company is likely to care about
+- what the job ad emphasizes
+- what the tailored CV now highlights
+- which parts of the user’s experience can support those claims
+- which older, smaller or less recent experience areas need refresh before the interview
+- where the user should be careful not to overstate experience
+
+Generic interview themes are allowed only when personalized.
+
+For example, instead of returning a generic “Tell me about yourself” question, the system should provide positioning guidance explaining how the candidate should present their background for this specific role, company and tailored CV.
+
+The interview preparation should also help verify whether the candidate can genuinely support the experience emphasized in the tailored CV.
+
+This is especially important when the CV optimization made older or smaller parts of past experience more visible because they are relevant to the target role.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-010 must be completed.
+- TASK-012 should be completed first.
+- Tailored CV JSON must be available.
+- Company research must be available or clearly marked as limited.
+- Firestore application records must support the `interview_prep` field.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Define interview preparation response model.
+- [ ] Define interview preparation validation rules.
+- [ ] Add interview preparation prompt.
+- [ ] Include original CV, tailored CV, job ad and company research in the prompt.
+- [ ] Add rules that prevent invented experience, achievements, metrics or tools.
+- [ ] Add rules that connect questions to evidence from the CV, company research or job ad.
+- [ ] Generate 10–15 personalized interview questions.
+- [ ] Generate 1–3 suggested answer directions per question.
+- [ ] Add candidate positioning guidance for “tell me about yourself” style opening questions.
+- [ ] Add preparation notes for emphasized but older, smaller or less recent experience areas.
+- [ ] Add warnings where the candidate should avoid overstating experience.
+- [ ] Store validated interview preparation in the `interview_prep` field of the application record.
+- [ ] Display interview preparation in the application preview.
+- [ ] Allow reopening saved interview preparation from `My Applications`.
+- [ ] Log AI failures, validation failures and Firestore save failures.
+
+### Expected JSON Format
+
+```json
+{
+  "interview_prep_id": "application-id-or-generated-id",
+  "application_id": "application-id",
+  "prep_status": "complete | limited",
+  "positioning_guidance": {
+    "summary": "How the candidate should position themselves for this specific role.",
+    "focus_points": ["Main experience or strength to emphasize."],
+    "avoid_overstating": [
+      "Area where the candidate should be careful or precise."
+    ]
+  },
+  "questions": [
+    {
+      "question_id": "q001",
+      "category": "cv_experience | job_requirement | company_context | gap_or_risk | behavioral | technical_or_domain | motivation",
+      "question": "Personalized interview question.",
+      "why_this_matters": "Why this question is likely or useful for this role.",
+      "evidence_to_use": [
+        "Relevant CV, tailored CV, company research or job-ad evidence."
+      ],
+      "suggested_answer_directions": [
+        {
+          "angle": "Possible answer angle.",
+          "key_points": ["Point the candidate can mention."],
+          "example_focus": "Short guidance for how to frame the answer without inventing facts."
+        }
+      ],
+      "preparation_note": "What the candidate should review before the interview.",
+      "risk_level": "low | medium | high"
+    }
+  ],
+  "experience_checkpoints": [
+    {
+      "emphasized_area": "Skill or experience emphasized in the tailored CV.",
+      "supporting_cv_evidence": "Where this is supported in the CV.",
+      "likely_follow_up_questions": ["Possible follow-up question."],
+      "preparation_needed": "What the candidate should refresh or prepare."
+    }
+  ],
+  "company_specific_talking_points": [
+    {
+      "topic": "Company-specific topic.",
+      "why_relevant": "Why it may matter in the interview.",
+      "how_to_use": "How the candidate may mention it."
+    }
+  ],
+  "candidate_questions_to_ask": [
+    {
+      "question": "Question the candidate can ask the interviewer.",
+      "reason": "Why this is useful."
+    }
+  ],
+  "limitations": ["Important limitation, missing data or uncertainty."],
+  "generated_at": "ISO datetime"
+}
+```
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] The system generates 10–15 interview questions.
+- [ ] Questions are personalized to the CV, tailored CV, job ad and company research.
+- [ ] Questions are not duplicated.
+- [ ] Generic questions are not returned as generic questions.
+- [ ] “Tell me about yourself” is handled as personalized positioning guidance, not as a generic question.
+- [ ] Each question includes 1–3 suggested answer directions.
+- [ ] Suggested answer directions use only facts supported by the original CV, tailored CV, company research or job ad.
+- [ ] The report includes preparation notes for experience that was emphasized in the tailored CV but may be older, smaller or less recent.
+- [ ] The report includes warnings where the candidate should avoid overstating experience.
+- [ ] The report includes questions that test whether the candidate can genuinely support the tailored CV.
+- [ ] The report includes company-specific talking points when company research is available.
+- [ ] If company research is limited, the report still works but clearly marks the limitation.
+- [ ] The result is stored in Firebase under the application’s `interview_prep` field.
+- [ ] Saved interview preparation can be reopened from the application preview.
+- [ ] Invalid AI output is rejected before being stored or displayed.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- Each report contains 10–15 questions.
+- At least one part of the report gives personalized positioning guidance.
+- At least one section checks whether the candidate can defend emphasized tailored-CV experience.
+- No question is a generic copy-paste interview question without connection to the job, company or CV.
+- Each question has clear relevance to at least one of:
+  - original CV
+  - tailored CV
+  - job requirements
+  - company research
+- Each suggested answer direction avoids invented facts.
+- Interview preparation is saved and can be reopened with the application record.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Normal flow: valid application with tailored CV and company research generates, validates, stores and displays interview preparation.
+- [ ] Valid application with limited company research still generates interview preparation with limitations marked.
+- [ ] Poor-fit application does not generate full tailored interview preparation unless explicitly allowed by later scope.
+- [ ] AI response with fewer than 10 questions is rejected.
+- [ ] AI response with more than 15 questions is rejected.
+- [ ] AI response with duplicated questions is rejected.
+- [ ] AI response with generic questions and no personalization is rejected.
+- [ ] AI response with invented experience, unsupported tools or unsupported achievements is rejected where validation can detect it.
+- [ ] AI response missing suggested answer directions is rejected.
+- [ ] AI response missing positioning guidance is rejected.
+- [ ] Firestore save failure returns a controlled error.
+- [ ] Application preview shows saved interview preparation after reload.
+- [ ] Existing application without interview preparation displays a clear empty state or generation option.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- Suggested answers should be answer directions, not fake scripts.
+- The system must help the user prepare honestly, not memorize invented claims.
+- The interview preparation should make the tailored CV safer by exposing areas the user needs to refresh.
+- Company-specific content depends on TASK-012 quality.
+- This task should not include a full interview simulator or live chat practice.
 
-## TASK-014 — Extend Main AI Contract and Integrate Supporting Features
+## TASK-014 — Extend Main Application Contract and Integrate Supporting Features
 
 ### Status
 
@@ -201,47 +475,310 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Create one validated application package that connects CV optimization, fit assessment, gap analysis, company research and interview preparation into a single saved workflow result and application preview.
 
 ### Description
 
-What is included in this task?
+This task extends the current validated CV optimization contract into a complete application package contract.
 
-What is explicitly not included?
+The current core workflow already produces:
+
+- role fit assessment
+- CV patch
+- gap analysis
+- warnings
+
+TASK-012 adds reusable company research.
+
+TASK-013 adds personalized interview preparation.
+
+This task connects those outputs without turning the system into one large AI call.
+
+The goal is to keep the workflows modular, but make the saved application result feel complete and consistent to the user.
+
+The application package should answer:
+
+- what role was analyzed
+- which company was used
+- whether the fit is strong, solid, stretch or poor
+- why the candidate received that fit assessment
+- which CV version was generated
+- which requirements are supported by the CV
+- which requirements are reasonably derived from existing experience
+- which requirements remain unsupported
+- what preparation or interview guidance follows from those gaps
+- what company research was used
+- what interview preparation was generated
+- which parts are complete, limited, missing or failed
+- which schema, prompt and model versions produced the result
+
+This task is an extension of the earlier response-model and validation work.
+
+It should update the application-level models, validation rules, storage format and UI integration so that all core and supporting outputs are part of the same saved application record instead of disconnected outputs.
+
+The task must preserve the existing product rules:
+
+- poor fit stops CV tailoring
+- draft CV can be revised
+- accepted CV enables PDF download
+- fit assessment is always shown
+- gap analysis is shown for both poor-fit and acceptable-fit applications
+- company research and interview preparation must be validated before display or storage
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-006 must be completed.
+- TASK-010 must be completed.
+- TASK-012 should be completed first.
+- TASK-013 should be completed first.
+- Firestore application persistence must be available.
+- Existing CV optimization validation must remain active.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Review the current CV optimization response model.
+- [ ] Review the current saved application model.
+- [ ] Define the complete application package model.
+- [ ] Add company research reference or snapshot fields to the application record.
+- [ ] Add interview preparation fields to the application record.
+- [ ] Add supporting-feature status fields.
+- [ ] Add prompt-version metadata for each workflow.
+- [ ] Add model-version metadata for each workflow.
+- [ ] Add generated-at timestamps for each supporting feature.
+- [ ] Update application validation rules.
+- [ ] Keep backward compatibility for older saved application records where possible.
+- [ ] Update Firestore save and update logic.
+- [ ] Update Firestore load and list logic.
+- [ ] Update the main application orchestration flow.
+- [ ] Ensure company research can be reused from Firestore.
+- [ ] Ensure interview preparation uses the validated CV, job ad and company research.
+- [ ] Ensure poor-fit applications do not generate a misleading tailored interview preparation package.
+- [ ] Add fit assessment panel to the application preview.
+- [ ] Add gap analysis panel to the application preview.
+- [ ] Show supported requirements from gap analysis.
+- [ ] Show reasonably derived requirements from gap analysis.
+- [ ] Show unsupported requirements from gap analysis.
+- [ ] Show preparation recommendations for unsupported requirements.
+- [ ] Show interview guidance for unsupported requirements.
+- [ ] Reuse the same fit and gap display components for poor-fit and acceptable-fit applications where possible.
+- [ ] Update the application preview UI to show company research and interview preparation when available.
+- [ ] Add clear empty, limited or failed states for supporting features.
+- [ ] Ensure accepted CV PDF generation remains unchanged.
+- [ ] Add automated tests for the complete application package contract.
+- [ ] Add tests for fit assessment and gap analysis rendering.
+- [ ] Add tests for old records, partial records and invalid supporting-feature output.
+- [ ] Log integration failures, validation failures and partial-result states.
+
+### Expected JSON Format
+
+```json
+{
+  "application_id": "application-id",
+  "profile_id": "profile-id",
+  "company_key": "company-name-iso2",
+  "job_title": "Target job title",
+  "job_ad_hash": "hash-of-job-ad",
+  "status": "draft | accepted",
+  "fit_assessment": {
+    "level": "strong | solid | stretch | poor",
+    "explanation": "Fit explanation.",
+    "relevant_experience": ["Relevant experience supported by the CV."],
+    "missing_requirements": ["Missing requirement."]
+  },
+  "tailored_cv": {
+    "profile_id": "profile-id",
+    "cv_version": "cv-version",
+    "personal_info": {},
+    "professional_summary": "Tailored summary.",
+    "core_skills": [],
+    "professional_experience": [],
+    "projects": [],
+    "education": [],
+    "languages": [],
+    "tools_and_technologies": []
+  },
+  "gap_analysis": {
+    "supported_requirements": ["Supported requirement."],
+    "reasonably_derived_requirements": ["Reasonably derived requirement."],
+    "unsupported_requirements": [
+      {
+        "requirement": "Unsupported requirement.",
+        "impact": "low | medium | high",
+        "preparation_recommendation": "Preparation recommendation.",
+        "interview_guidance": "Interview guidance."
+      }
+    ]
+  },
+  "company_research": {
+    "status": "not_started | complete | limited | failed",
+    "company_key": "company-name-iso2",
+    "research_snapshot": "CompanyResearchReport or null",
+    "generated_at": "ISO datetime or null",
+    "valid_until": "ISO datetime or null",
+    "prompt_version": "company-research-prompt-version or null",
+    "model_version": "model version or null",
+    "error_message": "User-safe error message or null"
+  },
+  "interview_prep": {
+    "status": "not_started | complete | limited | failed | skipped",
+    "prep_snapshot": "InterviewPreparationReport or null",
+    "generated_at": "ISO datetime or null",
+    "prompt_version": "interview-prep-prompt-version or null",
+    "model_version": "model version or null",
+    "error_message": "User-safe error message or null"
+  },
+  "workflow_status": {
+    "cv_optimization": "complete | failed",
+    "fit_assessment": "complete | failed",
+    "gap_analysis": "complete | failed",
+    "company_research": "not_started | complete | limited | failed",
+    "interview_prep": "not_started | complete | limited | failed | skipped",
+    "pdf_export": "blocked | available"
+  },
+  "metadata": {
+    "base_cv_version": "cv-version",
+    "schema_version": "application-schema-version",
+    "cv_prompt_version": "cv-optimization-prompt-version",
+    "revision_prompt_version": "revision-prompt-version or null",
+    "created_at": "ISO datetime",
+    "updated_at": "ISO datetime",
+    "accepted_at": "ISO datetime or null"
+  }
+}
+```
+
+### UI Preview Requirements
+
+The application preview should show the saved application as one coherent package.
+
+For acceptable-fit applications, the preview should include:
+
+- fit assessment
+- gap analysis
+- review controls
+- tailored CV preview
+- company research when available
+- interview preparation when available
+- PDF download after CV acceptance
+
+For poor-fit applications, the preview should include:
+
+- fit assessment
+- missing requirements
+- gap analysis
+- preparation recommendations
+- interview guidance for gaps
+- company research when available
+- no tailored CV preview
+- no CV acceptance flow
+- no final CV PDF download
+
+Fit assessment should show:
+
+- fit level
+- explanation
+- relevant experience
+- missing requirements
+
+Gap analysis should show:
+
+- supported requirements
+- reasonably derived requirements
+- unsupported requirements
+- impact level for unsupported requirements
+- preparation recommendation
+- interview guidance
+
+Company research and interview preparation should show clear states:
+
+- not started
+- complete
+- limited
+- failed
+- skipped
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] A complete application package model exists.
+- [ ] The model includes CV optimization, fit assessment, gap analysis, company research and interview preparation.
+- [ ] The model preserves the existing poor-fit rule.
+- [ ] Poor-fit applications must not contain a tailored CV.
+- [ ] Acceptable-fit applications must contain a tailored CV.
+- [ ] Fit assessment is visible in the application preview.
+- [ ] Gap analysis is visible in the application preview.
+- [ ] Fit assessment display includes level, explanation, relevant experience and missing requirements.
+- [ ] Gap analysis display includes supported requirements, reasonably derived requirements and unsupported requirements.
+- [ ] Unsupported requirements display impact, preparation recommendation and interview guidance.
+- [ ] Poor-fit display behavior remains valid but should reuse fit and gap display components where possible.
+- [ ] Company research can be attached as a validated snapshot or validated reference.
+- [ ] Interview preparation can be attached as a validated snapshot.
+- [ ] Supporting features have clear statuses: `not_started`, `complete`, `limited`, `failed` or `skipped`.
+- [ ] Invalid company research is not stored inside the application package.
+- [ ] Invalid interview preparation is not stored inside the application package.
+- [ ] Existing draft and accepted CV behavior remains unchanged.
+- [ ] Draft applications still allow revisions.
+- [ ] Accepted applications still allow direct PDF download.
+- [ ] The application preview shows CV, fit assessment, gap analysis, company research and interview preparation when available.
+- [ ] The application preview clearly shows when a supporting feature is limited, missing, failed or skipped.
+- [ ] Firestore records include prompt and model version metadata for each workflow.
+- [ ] Old saved application records without company research or interview preparation can still load, or fail safely with a clear migration note.
+- [ ] The main application workflow can produce a complete package without merging all AI work into one prompt.
+- [ ] No unvalidated AI output is displayed or stored.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- A saved application can be reopened and shows all available validated outputs.
+- Fit assessment is visible without needing to inspect Firestore or logs.
+- Gap analysis is visible without needing to inspect Firestore or logs.
+- CV optimization still works exactly as before.
+- Company research can be reused through the application package.
+- Interview preparation is connected to the correct application.
+- Supporting feature status is visible and understandable.
+- Failed or limited supporting features do not corrupt the main CV result.
+- Existing PDF export behavior still works after the contract extension.
+- Stored records contain enough metadata to understand which prompt and model generated each part.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Existing acceptable-fit application with only CV optimization still loads.
+- [ ] Existing poor-fit application still loads and does not contain a tailored CV.
+- [ ] New application package with CV optimization only validates.
+- [ ] New application package with CV optimization and company research validates.
+- [ ] New application package with CV optimization, company research and interview preparation validates.
+- [ ] Poor-fit application with tailored CV is rejected.
+- [ ] Acceptable-fit application without tailored CV is rejected.
+- [ ] Application with missing fit assessment is rejected.
+- [ ] Application with missing gap analysis is rejected.
+- [ ] Application with invalid company research snapshot is rejected.
+- [ ] Application with invalid interview preparation snapshot is rejected.
+- [ ] Application with failed company research status and no snapshot validates.
+- [ ] Application with limited company research status and valid limitation notes validates.
+- [ ] Application with skipped interview preparation for poor fit validates.
+- [ ] Fit assessment panel renders for acceptable-fit application.
+- [ ] Fit assessment panel renders for poor-fit application.
+- [ ] Gap analysis panel renders supported requirements.
+- [ ] Gap analysis panel renders reasonably derived requirements.
+- [ ] Gap analysis panel renders unsupported requirements.
+- [ ] Gap analysis panel renders preparation recommendations and interview guidance.
+- [ ] Firestore save failure returns a controlled error.
+- [ ] Firestore load failure returns a controlled error.
+- [ ] Application preview displays available supporting features.
+- [ ] Application preview displays empty state when supporting features are not started.
+- [ ] Accepted CV PDF download still works after the model changes.
+- [ ] Draft CV PDF download is still blocked after the model changes.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- This task should not combine all AI workflows into one large prompt.
+- The purpose is integration, contract consistency and preview completeness, not prompt consolidation.
+- Fit assessment and gap analysis are already core outputs and must be displayed before adding more supporting features.
+- Company research remains reusable company-level data.
+- Interview preparation remains application-specific data.
+- The application record may store a company research snapshot to preserve what was used at the time of preparation.
+- If storage size becomes a concern, the snapshot/reference decision can be reviewed later.
+- This task should be implemented carefully because it touches models, Firestore records, UI preview and workflow orchestration.
 
 ## TASK-015 — Test Complete Workflow, Edge Cases and Failure Handling
 
@@ -393,6 +930,250 @@ How will success be measured?
 
 Only include risks, open questions or important implementation constraints.
 
+## TASK-019 — Implement CV-First Inline Review and Granular Change Requests
+
+### Status
+
+Backlog
+
+### Goal
+
+Redesign the review experience so the CV is the primary screen and AI-suggested changes can be reviewed, accepted, kept or revised inline before final acceptance.
+
+### Description
+
+This task improves the human-in-the-loop review flow.
+
+The current workflow allows the user to request changes at broad section level after a tailored CV has already been generated.
+
+That is functional for the MVP, but it is not the ideal review experience.
+
+The user should not experience the AI result as a black box.
+
+The application should show the current CV as the primary page and display AI-suggested changes directly next to the relevant original CV content.
+
+The user should be able to understand:
+
+- what the original CV said
+- what the AI changed
+- why the change may be useful
+- whether the change is safe and accurate
+- whether to accept the suggestion
+- whether to keep the original text
+- whether to request a targeted revision
+
+The broad `Professional experience` revision box should be replaced by a more granular review flow.
+
+Instead of one large comment box for the full experience section, the user should be able to review and comment on smaller editable elements, such as:
+
+- professional summary
+- core skills
+- individual responsibility bullets
+- key achievement bullets
+- AI & Technical Projects
+- Tools and Technologies
+
+The goal is not to make the UI visually complex.
+
+The goal is to make AI changes transparent, reviewable and safer before the user accepts the final CV.
+
+This task should preserve the existing draft/accepted flow:
+
+- generated CV starts as draft
+- draft CV can be revised
+- accepted CV enables PDF download
+- final PDF export remains available only after acceptance
+
+### Dependencies
+
+- TASK-010 must be completed.
+- TASK-014 should be completed first.
+- Existing CV preview must be available.
+- Existing revision workflow must be available.
+- Existing draft and accepted application statuses must remain active.
+- Existing direct PDF export must remain active.
+
+### Subtasks
+
+- [ ] Make the CV view the default landing page.
+- [ ] Move optimization input into the side menu or a clearly separated side panel.
+- [ ] Keep `My Applications` accessible from the left side menu.
+- [ ] Keep `Companies` accessible from the left side menu if TASK-012 has been implemented.
+- [ ] Remove or de-emphasize the `Your CV is ready` modal as the main transition.
+- [ ] After optimization, route the user directly to the CV review view.
+- [ ] Display original CV content and AI-suggested content inline where possible.
+- [ ] Add inline review UI for professional summary.
+- [ ] Add inline review UI for core skills.
+- [ ] Add inline review UI for responsibility bullets.
+- [ ] Add inline review UI for key achievement bullets.
+- [ ] Add inline review UI for AI & Technical Projects.
+- [ ] Add inline review UI for Tools and Technologies.
+- [ ] Add per-element actions: accept suggestion, keep original, request change.
+- [ ] Add comment input only for the selected element being revised.
+- [ ] Avoid one large textbox for the full professional experience section.
+- [ ] Store review choices in session state or draft review state.
+- [ ] Apply accepted suggestions into the current draft CV.
+- [ ] Preserve original content when the user chooses to keep original text.
+- [ ] Send targeted revision requests only for selected editable elements.
+- [ ] Extend revision request models if current section-level model is not granular enough.
+- [ ] Extend validation so revised output can only change the selected editable element or allowed related patch field.
+- [ ] Ensure unreviewed or rejected AI suggestions are not silently included in the accepted CV.
+- [ ] Keep `Accept CV` disabled or clearly risky until required review choices are resolved.
+- [ ] Preserve existing PDF download behavior after acceptance.
+- [ ] Add empty states for fields that do not have AI suggestions.
+- [ ] Add visual distinction between original content, AI suggestion and accepted content.
+- [ ] Add logging for review decisions and targeted revision failures.
+- [ ] Add automated tests for review state and merge behavior where possible.
+- [ ] Add manual UI test checklist for inline review interactions.
+
+### Expected Review State Format
+
+```json
+{
+  "application_id": "application-id",
+  "review_status": "not_started | in_progress | ready_to_accept | accepted",
+  "items": [
+    {
+      "item_id": "summary",
+      "item_type": "professional_summary",
+      "source_section": "professional_summary",
+      "source_reference": "summary",
+      "original_value": "Original CV text.",
+      "suggested_value": "AI-suggested text.",
+      "current_value": "Currently selected text.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    },
+    {
+      "item_id": "experience_001_responsibility_001",
+      "item_type": "responsibility_bullet",
+      "source_section": "professional_experience",
+      "source_reference": "experience_001",
+      "original_value": "Original responsibility bullet.",
+      "suggested_value": "AI-suggested responsibility bullet.",
+      "current_value": "Currently selected bullet.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    }
+  ],
+  "accepted_cv_snapshot": "CVProfile or null",
+  "created_at": "ISO datetime",
+  "updated_at": "ISO datetime"
+}
+```
+
+### UI Requirements
+
+The main screen should prioritize the CV.
+
+The side menu should contain:
+
+- optimize CV input
+- My Applications
+- Companies, if available
+- navigation to saved results
+
+The review view should show:
+
+- current CV content
+- AI suggestions inline
+- review state per editable item
+- request-change controls only where they are relevant
+- fit assessment and gap analysis if TASK-014 has been completed
+- company research and interview preparation if available
+
+For each editable item, the UI should support:
+
+- viewing original content
+- viewing AI suggestion
+- accepting AI suggestion
+- keeping original content
+- requesting a revision with a targeted comment
+- showing revision success or failure
+
+### Acceptance Criteria
+
+- [ ] The app can open with the CV as the primary view.
+- [ ] Optimization input is available from the side menu or side panel.
+- [ ] The user can start optimization without leaving the CV-first flow.
+- [ ] After optimization, the user is taken to the CV review view without relying on a success modal.
+- [ ] The user can see original CV content and AI-suggested content together.
+- [ ] Professional summary suggestions can be reviewed inline.
+- [ ] Core skills suggestions can be reviewed inline.
+- [ ] Responsibility bullet suggestions can be reviewed inline.
+- [ ] Key achievement bullet suggestions can be reviewed inline.
+- [ ] AI & Technical Projects can be reviewed or commented on inline.
+- [ ] Tools and Technologies can be reviewed or commented on inline.
+- [ ] The broad full-section `Professional experience` comment box is removed or replaced by granular controls.
+- [ ] The user can accept a suggestion for an individual editable item.
+- [ ] The user can keep the original value for an individual editable item.
+- [ ] The user can request a targeted revision for an individual editable item.
+- [ ] Targeted revision does not change unrelated CV content.
+- [ ] Review choices are preserved during the draft review session.
+- [ ] Accepted CV is built only from accepted suggestions, kept originals and completed revisions.
+- [ ] Draft CV remains editable until the user accepts it.
+- [ ] Accepted CV still enables direct PDF download.
+- [ ] Draft CV still blocks PDF download.
+- [ ] My Applications still works after the UI redesign.
+- [ ] Existing saved applications can still be opened.
+- [ ] Fit assessment and gap analysis remain visible if TASK-014 has been implemented.
+- [ ] The UI remains simple and readable.
+
+### Measurements
+
+Success is measured by:
+
+- User can understand what AI changed without comparing raw JSON or separate pages.
+- User can review individual CV changes instead of commenting on broad sections.
+- User can keep original content where AI suggestion is not preferred.
+- User can request changes to specific bullets or fields.
+- Final accepted CV does not include unreviewed or rejected suggestions.
+- Existing draft/accepted/PDF behavior remains intact.
+- The review flow feels transparent rather than black-box.
+
+### Test Cases
+
+- [ ] App opens with CV-first view.
+- [ ] User opens optimization form from side menu.
+- [ ] User completes optimization and is routed to inline review view.
+- [ ] Professional summary suggestion appears next to original summary.
+- [ ] User accepts professional summary suggestion.
+- [ ] User keeps original professional summary.
+- [ ] User requests revision for professional summary.
+- [ ] Responsibility bullet suggestion appears next to original bullet.
+- [ ] User accepts one responsibility bullet and keeps another original bullet.
+- [ ] User requests revision for one responsibility bullet; unrelated bullets remain unchanged.
+- [ ] Key achievement bullet can be reviewed or commented on.
+- [ ] AI & Technical Projects section can be reviewed or commented on.
+- [ ] Tools and Technologies section can be reviewed or commented on.
+- [ ] Unrequested AI changes are rejected by validation.
+- [ ] Review state survives rerun during the same draft session.
+- [ ] Accepted CV contains only selected final values.
+- [ ] Draft PDF download remains blocked.
+- [ ] Accepted PDF download remains available.
+- [ ] Saved application opens correctly from My Applications.
+- [ ] Existing application without review-state data opens safely.
+- [ ] Revision failure shows a clear error and does not corrupt the draft CV.
+
+### Notes
+
+- This is a UX and review-safety task, not a visual redesign task.
+- The UI should remain simple.
+- The task may require extending the current revision model beyond broad sections.
+- The task should not weaken factual validation.
+- The task should not allow AI to invent new experience, tools, metrics or achievements.
+- This task should not include company research or interview preparation generation.
+- Company research and interview preparation may be displayed if already available, but they are not generated by this task.
+- If the task becomes too large, it may be split into:
+  - CV-first layout
+  - inline comparison display
+  - granular review decisions
+  - granular targeted revisions
+
 # This Sprint
 
 # In Progress
@@ -404,89 +1185,6 @@ Questions to answer:
 - What is actively being built?
 - Who or what is blocking progress?
 - What still needs to be tested?
-
-## TASK-010 — Implement Targeted Revision Workflow and Review UI
-
-### Status
-
-in Progress
-
-### Goal
-
-This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
-
-### Description
-
-In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
-
-The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
-
-### Dependencies
-
-TASK-009 must be completed first.
-
-### Subtasks
-
-- [ ] Add separate revision instructions to `ai/prompts.py`.
-- [ ] Display `Request changes` and `Accept CV` buttons on the preview page.
-- [ ] Allow comments only on sections that may be revised.
-- [ ] Allow each comment to be edited or removed.
-- [ ] Add a button to cancel the revision request.
-- [ ] Add a `Make changes` button.
-- [ ] Build the targeted revision AI call.
-- [ ] Send the existing CV, selected sections and user comments to Gemini.
-- [ ] Request only the selected sections in the AI response.
-- [ ] Pass the response through the cleaner and TASK-009 validation.
-- [ ] Merge validated sections with the current CV.
-- [ ] Save the revised result as the latest draft version.
-- [ ] Keep the CV in `draft` status after revisions.
-- [ ] Change the status to `accepted` only after the user clicks `Accept CV`.
-- [ ] Enable browser PDF export only for an accepted CV.
-- [ ] Log revision requests, completions and failures.
-
-### Acceptance Criteria
-
-- [ ] The initial CV result is available with status `draft`.
-- [ ] The preview displays `Request changes` and `Accept CV`.
-- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
-- [ ] Comments can be edited and removed.
-- [ ] The user can cancel the revision process.
-- [ ] Clicking `Make changes` starts the targeted revision workflow.
-- [ ] AI returns only the selected sections.
-- [ ] Revised sections are cleaned, validated and merged.
-- [ ] Sections that were not selected remain unchanged.
-- [ ] A revised CV is saved as the latest draft version.
-- [ ] Clicking `Accept CV` changes the status to `accepted`.
-- [ ] PDF export is available only after acceptance.
-
-### Measurements
-
-- Review and acceptance buttons are displayed and work.
-- Only editable sections can receive revision comments.
-- Comments can be added, edited and removed.
-- A successful revision updates only the selected sections.
-- Revised results remain in draft status.
-- Acceptance updates the Firestore status to `accepted`.
-- Accepted CVs can be saved through browser Print / Save as PDF.
-
-### Test Cases
-
-- [ ] Normal flow — the user accepts the CV and the database status changes to `accepted`.
-- [ ] Normal flow — the user adds, edits and removes comments on editable sections.
-- [ ] Normal flow — the user requests changes and receives an updated draft CV.
-- [ ] Normal flow — the user cancels the revision process without changing the CV.
-- [ ] Expected failure — AI returns an unrequested section.
-- [ ] Expected failure — revision response fails validation.
-- [ ] Expected failure — Firestore cannot save the revised draft.
-- [ ] Expected failure — PDF export is attempted while the CV is still in draft status.
-
-### Notes
-
-- A revision does not automatically accept the CV.
-- The user may repeat the review and revision process before acceptance.
-- Full revision history and side-by-side comparison are outside the MVP.
-
----
 
 # Review
 
@@ -522,6 +1220,56 @@ Questions to answer:
 - Why is this task paused?
 - What needs to happen before it continues?
 - Is this still part of the MVP?
+
+## TASK-011 — Perform Project Refactoring and Architecture Review
+
+### Status
+
+On Hold
+
+### Goal
+
+What should this task achieve and why is it needed?
+
+### Description
+
+What is included in this task?
+
+What is explicitly not included?
+
+### Dependencies
+
+Which tasks or decisions must be completed first?
+
+### Subtasks
+
+- [ ] Subtask 1
+- [ ] Subtask 2
+- [ ] Subtask 3
+
+### Acceptance Criteria
+
+- [ ] Requirement 1
+- [ ] Requirement 2
+- [ ] Requirement 3
+
+### Measurements
+
+How will success be measured?
+
+- Metric 1
+- Metric 2
+
+### Test Cases
+
+- [ ] Normal flow
+- [ ] Invalid input
+- [ ] Expected failure
+- [ ] Relevant edge case
+
+### Notes
+
+Only include risks, open questions or important implementation constraints.
 
 ---
 
@@ -1431,6 +2179,89 @@ TASK-008 must be completed first.
 - Revision validation is separate from complete CV validation.
 - The cleaner may remove wrappers but must not modify revision content.
 
+## TASK-010 — Implement Targeted Revision Workflow and Review UI
+
+### Status
+
+in Progress
+
+### Goal
+
+This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
+
+### Description
+
+In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
+
+The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
+
+### Dependencies
+
+TASK-009 must be completed first.
+
+### Subtasks
+
+- [x] Add separate revision instructions to `ai/prompts.py`.
+- [x] Display `Request changes` and `Accept CV` buttons on the preview page.
+- [x] Allow comments only on sections that may be revised.
+- [x] Allow each comment to be edited or removed.
+- [x] Add a button to cancel the revision request.
+- [x] Add a `Make changes` button.
+- [x] Build the targeted revision AI call.
+- [x] Send the existing CV, selected sections and user comments to Gemini.
+- [x] Request only the selected sections in the AI response.
+- [x] Pass the response through the cleaner and TASK-009 validation.
+- [x] Merge validated sections with the current CV.
+- [x] Save the revised result as the latest draft version.
+- [x] Keep the CV in `draft` status after revisions.
+- [x] Change the status to `accepted` only after the user clicks `Accept CV`.
+- [x] Enable browser PDF export only for an accepted CV.
+- [x] Log revision requests, completions and failures.
+
+### Acceptance Criteria
+
+- [ ] The initial CV result is available with status `draft`.
+- [ ] The preview displays `Request changes` and `Accept CV`.
+- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
+- [ ] Comments can be edited and removed.
+- [ ] The user can cancel the revision process.
+- [ ] Clicking `Make changes` starts the targeted revision workflow.
+- [ ] AI returns only the selected sections.
+- [ ] Revised sections are cleaned, validated and merged.
+- [ ] Sections that were not selected remain unchanged.
+- [ ] A revised CV is saved as the latest draft version.
+- [ ] Clicking `Accept CV` changes the status to `accepted`.
+- [ ] PDF export is available only after acceptance.
+
+### Measurements
+
+- Review and acceptance buttons are displayed and work.
+- Only editable sections can receive revision comments.
+- Comments can be added, edited and removed.
+- A successful revision updates only the selected sections.
+- Revised results remain in draft status.
+- Acceptance updates the Firestore status to `accepted`.
+- Accepted CVs can be saved through browser Print / Save as PDF.
+
+### Test Cases
+
+- [x] Normal flow — the user accepts the CV and the database status changes to `accepted`.
+- [x] Normal flow — the user adds, edits and removes comments on editable sections.
+- [x] Normal flow — the user requests changes and receives an updated draft CV.
+- [x] Normal flow — the user cancels the revision process without changing the CV.
+- [x] Expected failure — AI returns an unrequested section.
+- [x] Expected failure — revision response fails validation.
+- [x] Expected failure — Firestore cannot save the revised draft.
+- [x] Expected failure — PDF export is attempted while the CV is still in draft status.
+
+### Notes
+
+- A revision does not automatically accept the CV.
+- The user may repeat the review and revision process before acceptance.
+- Full revision history and side-by-side comparison are outside the MVP.
+
+---
+
 ---
 
 # Task Template
@@ -1552,11 +2383,13 @@ flowchart TD;
     Task-007-->Task-008;
     Task-008-->Task-009;
     Task-009-->Task-010;
-    Task-010-->Task-011;
-    Task-011-->Task-012;
+    Task-010-->Task-012;
     Task-012-->Task-013;
     Task-013-->Task-014;
-    Task-014-->Task-015;
-    Task-015-->Task-016;
+    Task-014-->Task-019;
+    Task-019-->Task-015;
+    Task-015-->Task-011;
+    Task-011-->Task-016;
     Task-016-->Task-017;
+
 ```

@@ -42,9 +42,6 @@ from services.revision_service import (
 from ui.cv_preview import (
     render_cv_preview,
 )
-from ui.cv_landing import (
-    render_cv_landing_page,
-)
 from ui.inline_review import (
     render_inline_review,
 )
@@ -135,14 +132,14 @@ def _dismiss_success_dialog() -> None:
 
 
 @st.dialog(
-    "CV optimization completed",
+    "Your CV is ready",
     on_dismiss=_dismiss_success_dialog,
 )
 def _show_success_dialog(
     application_id: str,
 ) -> None:
     st.write(
-        "CV optimization completed"
+        "Your CV is ready"
     )
 
     if st.button(
@@ -168,42 +165,14 @@ def _render_sidebar() -> None:
     )
 
     if st.sidebar.button(
-        "Current CV",
-        key="sidebar_current_cv_1",
-        width="stretch",
-    ):
-        st.query_params.from_dict(
-            {
-                "page": "cv",
-                **(
-                    {"profile": st.query_params.get("profile")}
-                    if st.query_params.get("profile")
-                    else {}
-                ),
-            }
-        )
-        st.rerun()
-
-    if st.sidebar.button(
         "Optimize CV",
-        key="sidebar_optimize_cv_2",
         width="stretch",
     ):
-        st.query_params.from_dict(
-            {
-                "page": "optimize",
-                **(
-                    {"profile": st.query_params.get("profile")}
-                    if st.query_params.get("profile")
-                    else {}
-                ),
-            }
-        )
+        _navigate("optimize")
         st.rerun()
 
     if st.sidebar.button(
         "My Applications",
-        key="sidebar_my_applications_1",
         width="stretch",
     ):
         _navigate("applications")
@@ -211,7 +180,6 @@ def _render_sidebar() -> None:
 
     if st.sidebar.button(
         "Companies",
-        key="sidebar_companies_1",
         width="stretch",
     ):
         _navigate("companies")
@@ -238,26 +206,9 @@ def _render_optimize_page() -> None:
     with st.form(
         "cv_optimization_form"
     ):
-        requested_profile_id = (
-            st.query_params.get("profile")
-        )
-
-        default_profile_index = 0
-
-        for index, option in enumerate(
-            candidate_options
-        ):
-            if (
-                option.profile_id
-                == requested_profile_id
-            ):
-                default_profile_index = index
-                break
-
         selected_candidate = st.selectbox(
             "Candidate profile",
             options=candidate_options,
-            index=default_profile_index,
             format_func=lambda option: (
                 option.display_name
             ),
@@ -1035,16 +986,10 @@ def main() -> None:
 
     page = st.query_params.get(
         "page",
-        "cv",
+        "optimize",
     )
 
-    if page == "cv":
-        render_cv_landing_page()
-
-    elif page == "optimize":
-        _render_optimize_page()
-
-    elif page == "preview":
+    if page == "preview":
         _render_preview_page()
 
     elif page == "applications":
@@ -1057,7 +1002,7 @@ def main() -> None:
         _render_company_preview_page()
 
     else:
-        render_cv_landing_page()
+        _render_optimize_page()
 
 
 if __name__ == "__main__":

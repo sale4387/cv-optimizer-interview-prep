@@ -1,193 +1,268 @@
-## TASK-015 — Test Complete Workflow, Edge Cases and Failure Handling
+## TASK-019 — Implement CV-First Inline Review and Granular Change Requests
 
 ### Status
 
-Backlog
+in Review
 
 ### Goal
 
-Verify that the complete application workflow works end-to-end and fails safely across normal, edge-case and failure scenarios.
+Redesign the review experience so the CV is the primary screen and AI-suggested changes can be reviewed, accepted, kept or revised inline before final acceptance.
 
 ### Description
 
-This task validates the full MVP workflow after the main features have been implemented.
+This task improves the human-in-the-loop review flow.
 
-At this point, the application should include:
+The current workflow allows the user to request changes at broad section level after a tailored CV has already been generated.
 
-- CV optimization
-- draft application creation
-- fit assessment
-- gap analysis
-- company research
-- interview preparation
-- inline CV review
-- targeted revision
-- CV acceptance
-- direct PDF download
-- saved application reopening
+That is functional for the MVP, but it is not the ideal review experience.
 
-This task does not add major new product features.
+The user should not experience the AI result as a black box.
 
-Its purpose is to prove that the full system works as one product and that individual parts do not break each other.
+The application should show the current CV as the primary page and display AI-suggested changes directly next to the relevant original CV content.
 
-The tests should cover:
+The user should be able to understand:
 
-- happy-path workflow
-- poor-fit workflow
-- draft and accepted application behavior
-- saved application reopening
-- company research cache behavior
-- interview preparation generation
-- inline review state
-- targeted revision behavior
-- PDF export rules
-- invalid AI output
-- invalid user input
-- Firestore failures
-- AI failures
-- partial-result scenarios
+- what the original CV said
+- what the AI changed
+- why the change may be useful
+- whether the change is safe and accurate
+- whether to accept the suggestion
+- whether to keep the original text
+- whether to request a targeted revision
 
-The system should never display or store unvalidated AI output.
+The broad `Professional experience` revision box should be replaced by a more granular review flow.
 
-When something fails, the user should receive a clear high-level error message, and the application should preserve any previously valid data.
+Instead of one large comment box for the full experience section, the user should be able to review and comment on smaller editable elements, such as:
+
+- professional summary
+- core skills
+- individual responsibility bullets
+- key achievement bullets
+- AI & Technical Projects
+- Tools and Technologies
+
+The goal is not to make the UI visually complex.
+
+The goal is to make AI changes transparent, reviewable and safer before the user accepts the final CV.
+
+This task should preserve the existing draft/accepted flow:
+
+- generated CV starts as draft
+- draft CV can be revised
+- accepted CV enables PDF download
+- final PDF export remains available only after acceptance
+
+### Review Finding
+
+After TASK-019 implementation, the app still opens on the job-ad optimization form.
+
+This does not match the intended CV-first flow.
+
+The app should open with a stored CV preview as the primary screen. The job-ad/application form should be secondary.
 
 ### Dependencies
 
-- TASK-012 must be completed.
-- TASK-013 must be completed.
-- TASK-014 must be completed.
-- TASK-019 must be completed.
-- Existing automated task-level tests must be passing.
-- Test data and at least one realistic job ad must be available.
+- TASK-010 must be completed.
+- TASK-014 should be completed first.
+- Existing CV preview must be available.
+- Existing revision workflow must be available.
+- Existing draft and accepted application statuses must remain active.
+- Existing direct PDF export must remain active.
 
 ### Subtasks
 
-- [ ] Define full workflow test scenarios.
-- [ ] Define realistic test inputs.
-- [ ] Prepare one strong-fit job ad test case.
-- [ ] Prepare one solid-fit or stretch-fit job ad test case.
-- [ ] Prepare one poor-fit job ad test case.
-- [ ] Prepare one company with enough public data.
-- [ ] Prepare one company with limited public data.
-- [ ] Test complete happy path from job ad input to accepted PDF download.
-- [ ] Test poor-fit path from job ad input to useful preparation output.
-- [ ] Test saved application reopening from `My Applications`.
-- [ ] Test saved company report reopening from `Companies`.
-- [ ] Test company research cache hit.
-- [ ] Test company research refresh when report is older than 3 months.
-- [ ] Test interview preparation generation and storage.
-- [ ] Test inline review decisions from TASK-019.
-- [ ] Test targeted revision for one editable CV item.
-- [ ] Test that unrelated CV content does not change during targeted revision.
-- [ ] Test accept CV flow.
-- [ ] Test direct PDF download after acceptance.
-- [ ] Test that draft PDF download remains blocked.
-- [ ] Test invalid company input.
-- [ ] Test missing or too-short job ad input.
-- [ ] Test invalid AI JSON response.
-- [ ] Test AI response with unsupported CV claims.
-- [ ] Test AI response with unrequested revision fields.
-- [ ] Test company research with insufficient public information.
-- [ ] Test interview preparation with generic or duplicated questions.
-- [ ] Test Firestore read failure.
-- [ ] Test Firestore write failure.
-- [ ] Test AI provider failure.
-- [ ] Test partial-result behavior when company research succeeds but interview preparation fails.
-- [ ] Test partial-result behavior when CV optimization succeeds but supporting feature fails.
-- [ ] Add controlled manual UI checklist.
-- [ ] Add or update automated test scripts where practical.
-- [ ] Save final test results log.
-- [ ] Record known limitations and accepted non-blocking issues.
+- [ ] Make the CV view the default landing page.
+- [ ] Move optimization input into the side menu or a clearly separated side panel.
+- [ ] Keep `My Applications` accessible from the left side menu.
+- [ ] Keep `Companies` accessible from the left side menu if TASK-012 has been implemented.
+- [ ] Remove or de-emphasize the `Your CV is ready` modal as the main transition.
+- [ ] After optimization, route the user directly to the CV review view.
+- [ ] Display original CV content and AI-suggested content inline where possible.
+- [ ] Add inline review UI for professional summary.
+- [ ] Add inline review UI for core skills.
+- [ ] Add inline review UI for responsibility bullets.
+- [ ] Add inline review UI for key achievement bullets.
+- [ ] Add inline review UI for AI & Technical Projects.
+- [ ] Add inline review UI for Tools and Technologies.
+- [ ] Add per-element actions: accept suggestion, keep original, request change.
+- [ ] Add comment input only for the selected element being revised.
+- [ ] Avoid one large textbox for the full professional experience section.
+- [ ] Store review choices in session state or draft review state.
+- [ ] Apply accepted suggestions into the current draft CV.
+- [ ] Preserve original content when the user chooses to keep original text.
+- [ ] Send targeted revision requests only for selected editable elements.
+- [ ] Extend revision request models if current section-level model is not granular enough.
+- [ ] Extend validation so revised output can only change the selected editable element or allowed related patch field.
+- [ ] Ensure unreviewed or rejected AI suggestions are not silently included in the accepted CV.
+- [ ] Keep `Accept CV` disabled or clearly risky until required review choices are resolved.
+- [ ] Preserve existing PDF download behavior after acceptance.
+- [ ] Add empty states for fields that do not have AI suggestions.
+- [ ] Add visual distinction between original content, AI suggestion and accepted content.
+- [ ] Add logging for review decisions and targeted revision failures.
+- [ ] Add automated tests for review state and merge behavior where possible.
+- [ ] Add manual UI test checklist for inline review interactions.
+- [ ] Implement profile-aware CV-first landing page.
+- [ ] Load default candidate profile from `cv_profiles.json`.
+- [ ] Support profile query parameter, for example `?profile=sale` and `?profile=svetlana`.
+- [ ] Candidate switch updates the selected profile and query params.
+- [ ] Main page shows stored CV before any optimization starts.
+- [ ] Move job-ad/application form to secondary UI location.
+- [ ] After optimization, show suggested optimized CV changes in the CV-first review context.
+
+### Expected Review State Format
+
+```json
+{
+  "application_id": "application-id",
+  "review_status": "not_started | in_progress | ready_to_accept | accepted",
+  "items": [
+    {
+      "item_id": "summary",
+      "item_type": "professional_summary",
+      "source_section": "professional_summary",
+      "source_reference": "summary",
+      "original_value": "Original CV text.",
+      "suggested_value": "AI-suggested text.",
+      "current_value": "Currently selected text.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    },
+    {
+      "item_id": "experience_001_responsibility_001",
+      "item_type": "responsibility_bullet",
+      "source_section": "professional_experience",
+      "source_reference": "experience_001",
+      "original_value": "Original responsibility bullet.",
+      "suggested_value": "AI-suggested responsibility bullet.",
+      "current_value": "Currently selected bullet.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    }
+  ],
+  "accepted_cv_snapshot": "CVProfile or null",
+  "created_at": "ISO datetime",
+  "updated_at": "ISO datetime"
+}
+```
+
+### UI Requirements
+
+The main screen should prioritize the CV.
+
+The side menu should contain:
+
+- optimize CV input
+- My Applications
+- Companies, if available
+- navigation to saved results
+
+The review view should show:
+
+- current CV content
+- AI suggestions inline
+- review state per editable item
+- request-change controls only where they are relevant
+- fit assessment and gap analysis if TASK-014 has been completed
+- company research and interview preparation if available
+
+For each editable item, the UI should support:
+
+- viewing original content
+- viewing AI suggestion
+- accepting AI suggestion
+- keeping original content
+- requesting a revision with a targeted comment
+- showing revision success or failure
 
 ### Acceptance Criteria
 
-- [ ] Complete happy-path workflow works without editing code.
-- [ ] User can submit a valid job ad and company input.
-- [ ] System creates a saved draft application.
-- [ ] Fit assessment is displayed.
-- [ ] Gap analysis is displayed.
-- [ ] Company research is generated or reused.
-- [ ] Interview preparation is generated and saved.
-- [ ] Inline CV review works.
-- [ ] Targeted revision works and keeps application in draft status.
-- [ ] Accept CV changes status to `accepted`.
-- [ ] Accepted CV can be downloaded as PDF.
-- [ ] Draft CV cannot be downloaded as final PDF.
-- [ ] Saved applications can be reopened.
-- [ ] Saved company reports can be reopened.
-- [ ] Poor-fit workflow stops CV tailoring.
-- [ ] Poor-fit workflow still shows useful gap and preparation guidance.
-- [ ] Invalid input is rejected before AI calls where possible.
-- [ ] Invalid AI output is rejected before display or storage.
-- [ ] Firestore failures return controlled errors.
-- [ ] AI failures return controlled errors.
-- [ ] Partial supporting-feature failures do not corrupt the main CV result.
-- [ ] Previously valid saved data is preserved after a failed later step.
-- [ ] Logs provide enough information to diagnose failures.
-- [ ] Final test log shows pass/fail result for every critical scenario.
+- [ ] The app can open with the CV as the primary view.
+- [ ] Optimization input is available from the side menu or side panel.
+- [ ] The user can start optimization without leaving the CV-first flow.
+- [ ] After optimization, the user is taken to the CV review view without relying on a success modal.
+- [ ] The user can see original CV content and AI-suggested content together.
+- [ ] Professional summary suggestions can be reviewed inline.
+- [ ] Core skills suggestions can be reviewed inline.
+- [ ] Responsibility bullet suggestions can be reviewed inline.
+- [ ] Key achievement bullet suggestions can be reviewed inline.
+- [ ] AI & Technical Projects can be reviewed or commented on inline.
+- [ ] Tools and Technologies can be reviewed or commented on inline.
+- [ ] The broad full-section `Professional experience` comment box is removed or replaced by granular controls.
+- [ ] The user can accept a suggestion for an individual editable item.
+- [ ] The user can keep the original value for an individual editable item.
+- [ ] The user can request a targeted revision for an individual editable item.
+- [ ] Targeted revision does not change unrelated CV content.
+- [ ] Review choices are preserved during the draft review session.
+- [ ] Accepted CV is built only from accepted suggestions, kept originals and completed revisions.
+- [ ] Draft CV remains editable until the user accepts it.
+- [ ] Accepted CV still enables direct PDF download.
+- [ ] Draft CV still blocks PDF download.
+- [ ] My Applications still works after the UI redesign.
+- [ ] Existing saved applications can still be opened.
+- [ ] Fit assessment and gap analysis remain visible if TASK-014 has been implemented.
+- [ ] The UI remains simple and readable.
+- [ ] App opens on stored CV preview, not job-ad form.
+- [ ] Default profile loads automatically.
+- [ ] `?profile=sale` opens Sale CV.
+- [ ] `?profile=svetlana` opens Svetlana CV.
+- [ ] Candidate switch changes visible CV.
+- [ ] Job-ad form is still available but not the primary landing screen.
+- [ ] Optimized CV suggestions appear inside the CV-first review flow.
 
 ### Measurements
 
 Success is measured by:
 
-- Full workflow can be demonstrated from start to finish.
-- All critical automated tests pass.
-- Manual UI checklist passes for the main user journey.
-- No unvalidated AI output is displayed.
-- No draft CV can be exported as final PDF.
-- Failed company research or interview preparation does not break CV optimization.
-- Saved records can be reopened after app restart.
-- Error messages are user-safe and understandable.
-- Known remaining issues are documented before refactoring.
+- User can understand what AI changed without comparing raw JSON or separate pages.
+- User can review individual CV changes instead of commenting on broad sections.
+- User can keep original content where AI suggestion is not preferred.
+- User can request changes to specific bullets or fields.
+- Final accepted CV does not include unreviewed or rejected suggestions.
+- Existing draft/accepted/PDF behavior remains intact.
+- The review flow feels transparent rather than black-box.
 
 ### Test Cases
 
-- [ ] Strong-fit application completes full workflow and downloads accepted PDF.
-- [ ] Solid-fit or stretch-fit application completes full workflow with gap guidance.
-- [ ] Poor-fit application stops CV tailoring and displays preparation recommendations.
-- [ ] Existing fresh company research is reused.
-- [ ] Expired company research is refreshed.
-- [ ] Limited company research produces a limited but valid report.
-- [ ] Interview preparation generates 10–15 personalized questions.
-- [ ] Interview preparation rejects duplicated or generic-only questions.
-- [ ] Inline review accepts one AI suggestion and keeps one original value.
-- [ ] Inline review revision changes only the selected editable item.
-- [ ] User accepts CV after review and PDF download becomes available.
-- [ ] Draft PDF export remains blocked.
-- [ ] Saved application opens correctly from `My Applications`.
-- [ ] Saved company report opens correctly from `Companies`.
-- [ ] Invalid company format is rejected.
-- [ ] Empty job title is rejected.
-- [ ] Empty or too-short job ad is rejected.
-- [ ] AI timeout or provider failure returns a controlled error.
-- [ ] AI invalid JSON response returns a controlled error.
-- [ ] AI unsupported CV claim is rejected.
-- [ ] Firestore read failure returns a controlled error.
-- [ ] Firestore write failure returns a controlled error.
-- [ ] Application reload after failure keeps last valid saved state.
-- [ ] Browser/app rerun does not lose critical draft state.
-- [ ] Accepted application remains accepted after reload.
-- [ ] Old saved application record without new supporting fields loads safely or shows a clear migration/fallback state.
-
-### Manual UI Checklist
-
-- [ ] Sidebar navigation is understandable.
-- [ ] CV-first flow from TASK-019 is usable.
-- [ ] Fit assessment is easy to find.
-- [ ] Gap analysis is easy to understand.
-- [ ] Company report is readable and not too long.
-- [ ] Interview preparation is practical and not generic.
-- [ ] Inline review controls are not confusing.
-- [ ] Error messages do not expose raw technical details.
-- [ ] PDF filename is safe and understandable.
-- [ ] Final PDF opens correctly.
-- [ ] Final PDF content matches accepted CV content.
+- [ ] App opens with CV-first view.
+- [ ] User opens optimization form from side menu.
+- [ ] User completes optimization and is routed to inline review view.
+- [ ] Professional summary suggestion appears next to original summary.
+- [ ] User accepts professional summary suggestion.
+- [ ] User keeps original professional summary.
+- [ ] User requests revision for professional summary.
+- [ ] Responsibility bullet suggestion appears next to original bullet.
+- [ ] User accepts one responsibility bullet and keeps another original bullet.
+- [ ] User requests revision for one responsibility bullet; unrelated bullets remain unchanged.
+- [ ] Key achievement bullet can be reviewed or commented on.
+- [ ] AI & Technical Projects section can be reviewed or commented on.
+- [ ] Tools and Technologies section can be reviewed or commented on.
+- [ ] Unrequested AI changes are rejected by validation.
+- [ ] Review state survives rerun during the same draft session.
+- [ ] Accepted CV contains only selected final values.
+- [ ] Draft PDF download remains blocked.
+- [ ] Accepted PDF download remains available.
+- [ ] Saved application opens correctly from My Applications.
+- [ ] Existing application without review-state data opens safely.
+- [ ] Revision failure shows a clear error and does not corrupt the draft CV.
 
 ### Notes
 
-- This task is a verification and hardening task, not a feature-expansion task.
-- Small bugs may be fixed during this task if they block workflow completion.
-- Larger design or architecture issues should be recorded for TASK-011.
-- Cosmetic issues should not block completion unless they prevent real use.
-- Any accepted limitation must be written down before deployment preparation.
-- Final output of this task should include a test results log and a short list of remaining known issues.
+- This is a UX and review-safety task, not a visual redesign task.
+- The UI should remain simple.
+- The task may require extending the current revision model beyond broad sections.
+- The task should not weaken factual validation.
+- The task should not allow AI to invent new experience, tools, metrics or achievements.
+- This task should not include company research or interview preparation generation.
+- Company research and interview preparation may be displayed if already available, but they are not generated by this task.
+- If the task becomes too large, it may be split into:
+  - CV-first layout
+  - inline comparison display
+  - granular review decisions
+  - granular targeted revisions
+
+This is a blocking UX fix before TASK-015 manual workflow testing.
+Do not start full TASK-015 manual testing until this fix is completed.

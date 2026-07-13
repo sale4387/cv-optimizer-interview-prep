@@ -1,337 +1,232 @@
 from __future__ import annotations
 
+import re
 import sys
-from copy import deepcopy
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Callable
 
-from cv_data.models import CVProfile
-from services.inline_review_service import (
-    InlineReviewError,
-    build_inline_review_state,
-    review_state_ready_to_accept,
-    update_review_item_decision,
+from services.candidate_profile_service import (
+    get_default_candidate_profile,
+    list_candidate_options,
+    load_candidate_cv,
 )
 
 
-def load_base_cv() -> CVProfile:
-    return CVProfile.model_validate_json(
-        Path("cv_data/cv_sale.json").read_text(
-            encoding="utf-8"
-        )
-    )
+APP_PATH = Path("streamlit/app.py")
 
 
-def make_application(
-    *,
-    tailored_cv: dict | None,
-):
-    return SimpleNamespace(
-        application_id="app-019-test",
-        profile_id="sale",
-        tailored_cv=tailored_cv,
-    )
-
-
-def make_tailored_cv() -> dict:
-    base = load_base_cv().model_dump(
-        mode="python"
-    )
-
-    tailored = deepcopy(base)
-
-    tailored["professional_summary"] = (
-        tailored["professional_summary"]
-        + " Tailored for this specific job application."
-    )
-
-    if tailored.get("core_skills"):
-        tailored["core_skills"] = (
-            list(tailored["core_skills"])
-            + ["Job-specific stakeholder alignment"]
+def read_app() -> str:
+    if not APP_PATH.exists():
+        raise FileNotFoundError(
+            "streamlit/app.py was not found."
         )
 
-    if tailored.get("tools_and_technologies"):
-        tailored["tools_and_technologies"] = (
-            list(tailored["tools_and_technologies"])
-            + ["Applicant tracking systems"]
-        )
-
-    experiences = tailored.get(
-        "professional_experience",
-        [],
-    )
-
-    if experiences:
-        responsibilities = experiences[0].setdefault(
-            "responsibilities",
-            [],
-        )
-
-        responsibilities.append(
-            "Tailored responsibility for the tested job application."
-        )
-
-    return tailored
-
-
-def test_inline_review_state_created() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    assert state.application_id == "app-019-test"
-    assert state.items
-
-
-def test_summary_review_item_exists() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    item_types = {
-        item.item_type
-        for item in state.items
-    }
-
-    assert "professional_summary" in item_types
-
-
-def test_core_skills_or_tools_review_item_exists() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    item_types = {
-        item.item_type
-        for item in state.items
-    }
-
-    assert (
-        "core_skills" in item_types
-        or "tools_and_technologies" in item_types
-    )
-
-
-def test_responsibility_review_item_exists() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    item_types = {
-        item.item_type
-        for item in state.items
-    }
-
-    assert "responsibility_bullet" in item_types
-
-
-def test_missing_tailored_cv_rejected() -> None:
-    application = make_application(
-        tailored_cv=None
-    )
-
-    try:
-        build_inline_review_state(
-            application
-        )
-
-    except InlineReviewError:
-        return
-
-    raise AssertionError(
-        "Application without tailored CV was accepted for inline review."
-    )
-
-
-def test_accept_suggestion_decision_updates_item() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    first_item = state.items[0]
-
-    updated = update_review_item_decision(
-        state,
-        item_id=first_item.item_id,
-        decision="accepted_suggestion",
-    )
-
-    updated_item = updated.items[0]
-
-    assert updated_item.decision == "accepted_suggestion"
-    assert updated_item.current_value == updated_item.suggested_value
-
-
-def test_keep_original_decision_updates_item() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    first_item = state.items[0]
-
-    updated = update_review_item_decision(
-        state,
-        item_id=first_item.item_id,
-        decision="kept_original",
-    )
-
-    updated_item = updated.items[0]
-
-    assert updated_item.decision == "kept_original"
-    assert updated_item.current_value == updated_item.original_value
-
-
-def test_revision_request_sets_pending_status() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    first_item = state.items[0]
-
-    updated = update_review_item_decision(
-        state,
-        item_id=first_item.item_id,
-        decision="revision_requested",
-        user_comment="Make this more precise.",
-    )
-
-    updated_item = updated.items[0]
-
-    assert updated_item.decision == "revision_requested"
-    assert updated_item.revision_status == "pending"
-    assert updated_item.user_comment == "Make this more precise."
-
-
-def test_ready_to_accept_false_with_pending_items() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    assert review_state_ready_to_accept(
-        state
-    ) is False
-
-
-def test_ready_to_accept_true_when_all_resolved() -> None:
-    application = make_application(
-        tailored_cv=make_tailored_cv()
-    )
-
-    state = build_inline_review_state(
-        application
-    )
-
-    for item in state.items:
-        state = update_review_item_decision(
-            state,
-            item_id=item.item_id,
-            decision="accepted_suggestion",
-        )
-
-    assert review_state_ready_to_accept(
-        state
-    ) is True
-
-
-def test_streamlit_app_patched() -> None:
-    app_text = Path("streamlit/app.py").read_text(
+    return APP_PATH.read_text(
         encoding="utf-8"
     )
 
-    assert "render_inline_review" in app_text
-    assert "Request changes is available only" in app_text
+
+def count_sidebar_optimize_buttons(
+    app_text: str,
+) -> int:
+    return len(
+        re.findall(
+            r"st\.sidebar\.button\(\s*[\"']Optimize CV[\"']",
+            app_text,
+        )
+    )
 
 
-def test_inline_review_ui_imports() -> None:
-    from ui.inline_review import render_inline_review
+def test_cv_landing_file_exists() -> None:
+    assert Path("ui/cv_landing.py").exists()
 
-    assert callable(render_inline_review)
+
+def test_cv_landing_imports() -> None:
+    from ui.cv_landing import render_cv_landing_page
+
+    assert callable(render_cv_landing_page)
+
+
+def test_default_profile_is_sale() -> None:
+    default_profile = get_default_candidate_profile()
+
+    assert default_profile.profile_id == "sale"
+
+
+def test_profiles_sale_and_svetlana_available() -> None:
+    profiles = list_candidate_options()
+    profile_ids = {
+        profile.profile_id
+        for profile in profiles
+    }
+
+    assert "sale" in profile_ids
+    assert "svetlana" in profile_ids
+
+
+def test_sale_cv_loads() -> None:
+    cv = load_candidate_cv("sale")
+
+    assert cv.profile_id == "sale"
+
+
+def test_svetlana_cv_loads() -> None:
+    cv = load_candidate_cv("svetlana")
+
+    assert cv.profile_id == "svetlana"
+
+
+def test_app_imports_cv_landing() -> None:
+    app_text = read_app()
+
+    assert "render_cv_landing_page" in app_text
+
+
+def test_app_has_cv_first_route() -> None:
+    app_text = read_app()
+
+    assert 'page == "cv"' in app_text
+    assert "render_cv_landing_page()" in app_text
+
+
+def test_app_has_optimize_route() -> None:
+    app_text = read_app()
+
+    assert 'page == "optimize"' in app_text
+    assert "_render_optimize_page()" in app_text
+
+
+def test_app_default_page_is_cv() -> None:
+    app_text = read_app()
+
+    assert (
+        'get("page", "cv")' in app_text
+        or "get('page', 'cv')" in app_text
+        or 'get("page") or "cv"' in app_text
+        or "get('page') or 'cv'" in app_text
+    )
+
+
+def test_app_not_defaulting_to_optimize() -> None:
+    app_text = read_app()
+
+    forbidden_fragments = [
+        'get("page", "optimize")',
+        "get('page', 'optimize')",
+        'get("page") or "optimize"',
+        "get('page') or 'optimize'",
+    ]
+
+    for fragment in forbidden_fragments:
+        assert fragment not in app_text
+
+
+def test_sidebar_has_current_cv_button() -> None:
+    app_text = read_app()
+
+    assert '"Current CV"' in app_text
+
+
+def test_sidebar_has_only_one_optimize_cv_button() -> None:
+    app_text = read_app()
+
+    count = count_sidebar_optimize_buttons(
+        app_text
+    )
+
+    assert count == 1, (
+        f"Expected exactly one sidebar Optimize CV button, found {count}."
+    )
+
+
+def test_sidebar_buttons_have_keys() -> None:
+    app_text = read_app()
+
+    sidebar_button_blocks = re.findall(
+        r"st\.sidebar\.button\([\s\S]*?\):",
+        app_text,
+    )
+
+    assert sidebar_button_blocks, (
+        "No sidebar buttons were found."
+    )
+
+    for block in sidebar_button_blocks:
+        assert "key=" in block, (
+            "A sidebar button is missing a unique key."
+        )
+
+
+def test_optimize_form_reads_profile_query_param() -> None:
+    app_text = read_app()
+
+    assert "requested_profile_id" in app_text
+    assert "default_profile_index" in app_text
+    assert "index=default_profile_index" in app_text
 
 
 TESTS: list[
     tuple[str, Callable[[], None]]
 ] = [
     (
-        "Inline review state created",
-        test_inline_review_state_created,
+        "CV landing file exists",
+        test_cv_landing_file_exists,
     ),
     (
-        "Summary review item exists",
-        test_summary_review_item_exists,
+        "CV landing imports",
+        test_cv_landing_imports,
     ),
     (
-        "Core skills or tools review item exists",
-        test_core_skills_or_tools_review_item_exists,
+        "Default profile is sale",
+        test_default_profile_is_sale,
     ),
     (
-        "Responsibility review item exists",
-        test_responsibility_review_item_exists,
+        "Profiles sale and svetlana available",
+        test_profiles_sale_and_svetlana_available,
     ),
     (
-        "Missing tailored CV rejected",
-        test_missing_tailored_cv_rejected,
+        "Sale CV loads",
+        test_sale_cv_loads,
     ),
     (
-        "Accept suggestion decision updates item",
-        test_accept_suggestion_decision_updates_item,
+        "Svetlana CV loads",
+        test_svetlana_cv_loads,
     ),
     (
-        "Keep original decision updates item",
-        test_keep_original_decision_updates_item,
+        "App imports CV landing",
+        test_app_imports_cv_landing,
     ),
     (
-        "Revision request sets pending status",
-        test_revision_request_sets_pending_status,
+        "App has CV-first route",
+        test_app_has_cv_first_route,
     ),
     (
-        "Ready to accept false with pending items",
-        test_ready_to_accept_false_with_pending_items,
+        "App has optimize route",
+        test_app_has_optimize_route,
     ),
     (
-        "Ready to accept true when all resolved",
-        test_ready_to_accept_true_when_all_resolved,
+        "App default page is CV",
+        test_app_default_page_is_cv,
     ),
     (
-        "Streamlit app patched",
-        test_streamlit_app_patched,
+        "App does not default to optimize",
+        test_app_not_defaulting_to_optimize,
     ),
     (
-        "Inline review UI imports",
-        test_inline_review_ui_imports,
+        "Sidebar has Current CV button",
+        test_sidebar_has_current_cv_button,
+    ),
+    (
+        "Sidebar has only one Optimize CV button",
+        test_sidebar_has_only_one_optimize_cv_button,
+    ),
+    (
+        "Sidebar buttons have keys",
+        test_sidebar_buttons_have_keys,
+    ),
+    (
+        "Optimize form reads profile query param",
+        test_optimize_form_reads_profile_query_param,
     ),
 ]
 
@@ -340,16 +235,12 @@ def main() -> int:
     passed = 0
     failed = 0
 
-    for (
-        test_name,
-        test_function,
-    ) in TESTS:
+    for test_name, test_function in TESTS:
         try:
             test_function()
 
         except Exception as error:
             failed += 1
-
             print(
                 f"[FAIL] {test_name} — "
                 f"{type(error).__name__}: {error}"

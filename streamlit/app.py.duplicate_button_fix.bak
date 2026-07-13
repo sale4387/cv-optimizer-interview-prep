@@ -168,8 +168,14 @@ def _render_sidebar() -> None:
     )
 
     if st.sidebar.button(
+        "Optimize CV",
+        width="stretch",
+    ):
+        _navigate("optimize")
+        st.rerun()
+
+    if st.sidebar.button(
         "Current CV",
-        key="sidebar_current_cv_1",
         width="stretch",
     ):
         st.query_params.from_dict(
@@ -186,7 +192,6 @@ def _render_sidebar() -> None:
 
     if st.sidebar.button(
         "Optimize CV",
-        key="sidebar_optimize_cv_2",
         width="stretch",
     ):
         st.query_params.from_dict(
@@ -203,7 +208,6 @@ def _render_sidebar() -> None:
 
     if st.sidebar.button(
         "My Applications",
-        key="sidebar_my_applications_1",
         width="stretch",
     ):
         _navigate("applications")
@@ -211,7 +215,6 @@ def _render_sidebar() -> None:
 
     if st.sidebar.button(
         "Companies",
-        key="sidebar_companies_1",
         width="stretch",
     ):
         _navigate("companies")
@@ -1035,7 +1038,7 @@ def main() -> None:
 
     page = st.query_params.get(
         "page",
-        "cv",
+        "optimize",
     )
 
     if page == "cv":

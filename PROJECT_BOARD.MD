@@ -475,7 +475,7 @@ Backlog
 
 ### Goal
 
-Create one validated application package that connects CV optimization, fit assessment, gap analysis, company research and interview preparation into a single saved workflow result and application preview.
+Create one validated application package that supports multiple candidate CV profiles and connects CV optimization, fit assessment, gap analysis, company research and interview preparation into a single saved workflow result and application preview.
 
 ### Description
 
@@ -492,12 +492,46 @@ TASK-012 adds reusable company research.
 
 TASK-013 adds personalized interview preparation.
 
-This task connects those outputs without turning the system into one large AI call.
+This task also adds support for multiple predefined candidate CV profiles.
+
+The MVP should support selecting which candidate profile is used before running the application workflow.
+
+The first supported profiles are:
+
+- Aleksandar Markovic
+- Svetlana Markovic
+
+The candidate profile selection should be simple.
+
+A dropdown is enough for V1:
+
+```text
+Candidate profile
+- Aleksandar Markovic
+- Svetlana Markovic
+```
+
+Each candidate should have a structured CV JSON file using the same `CVProfile` model.
+
+Expected local structure:
+
+```text
+cv_data/
+  cv_sale.json
+  cv_svetlana.json
+```
+
+The user may provide Svetlana’s latest CV as source material, but the application should not introduce general CV upload or parsing in this task.
+
+For the MVP, Svetlana’s CV should be manually converted into the same structured JSON format as the existing CV profile.
+
+This task connects all application outputs without turning the system into one large AI call.
 
 The goal is to keep the workflows modular, but make the saved application result feel complete and consistent to the user.
 
 The application package should answer:
 
+- which candidate profile was used
 - what role was analyzed
 - which company was used
 - whether the fit is strong, solid, stretch or poor
@@ -518,6 +552,8 @@ It should update the application-level models, validation rules, storage format 
 
 The task must preserve the existing product rules:
 
+- selected candidate profile determines which CV is loaded
+- selected candidate profile is stored in the application record
 - poor fit stops CV tailoring
 - draft CV can be revised
 - accepted CV enables PDF download
@@ -533,11 +569,22 @@ The task must preserve the existing product rules:
 - TASK-013 should be completed first.
 - Firestore application persistence must be available.
 - Existing CV optimization validation must remain active.
+- Svetlana’s CV source material must be converted into structured CV JSON before her profile can be used in the workflow.
 
 ### Subtasks
 
 - [ ] Review the current CV optimization response model.
 - [ ] Review the current saved application model.
+- [ ] Define a candidate profile registry.
+- [ ] Add `cv_data/cv_svetlana.json` using the existing `CVProfile` structure.
+- [ ] Validate `cv_sale.json` and `cv_svetlana.json` with the same CV model.
+- [ ] Add candidate profile selection to the application input flow.
+- [ ] Load the selected candidate CV before CV optimization.
+- [ ] Store selected `profile_id` in every application record.
+- [ ] Display selected candidate name or profile in application preview.
+- [ ] Display selected candidate name or profile in `My Applications`.
+- [ ] Ensure `My Applications` can show or filter applications by candidate profile if needed.
+- [ ] Ensure PDF export uses the accepted CV from the selected candidate profile.
 - [ ] Define the complete application package model.
 - [ ] Add company research reference or snapshot fields to the application record.
 - [ ] Add interview preparation fields to the application record.
@@ -551,7 +598,7 @@ The task must preserve the existing product rules:
 - [ ] Update Firestore load and list logic.
 - [ ] Update the main application orchestration flow.
 - [ ] Ensure company research can be reused from Firestore.
-- [ ] Ensure interview preparation uses the validated CV, job ad and company research.
+- [ ] Ensure interview preparation uses the selected candidate CV, validated tailored CV, job ad and company research.
 - [ ] Ensure poor-fit applications do not generate a misleading tailored interview preparation package.
 - [ ] Add fit assessment panel to the application preview.
 - [ ] Add gap analysis panel to the application preview.
@@ -564,17 +611,44 @@ The task must preserve the existing product rules:
 - [ ] Update the application preview UI to show company research and interview preparation when available.
 - [ ] Add clear empty, limited or failed states for supporting features.
 - [ ] Ensure accepted CV PDF generation remains unchanged.
+- [ ] Add automated tests for candidate profile selection.
 - [ ] Add automated tests for the complete application package contract.
 - [ ] Add tests for fit assessment and gap analysis rendering.
 - [ ] Add tests for old records, partial records and invalid supporting-feature output.
 - [ ] Log integration failures, validation failures and partial-result states.
 
-### Expected JSON Format
+### Candidate Profile Registry Format
+
+```json
+{
+  "profiles": [
+    {
+      "profile_id": "sale",
+      "display_name": "Aleksandar Markovic",
+      "cv_path": "cv_data/cv_sale.json",
+      "is_default": true
+    },
+    {
+      "profile_id": "svetlana",
+      "display_name": "Svetlana Markovic",
+      "cv_path": "cv_data/cv_svetlana.json",
+      "is_default": false
+    }
+  ]
+}
+```
+
+### Expected Application JSON Format
 
 ```json
 {
   "application_id": "application-id",
   "profile_id": "profile-id",
+  "candidate": {
+    "profile_id": "sale | svetlana",
+    "display_name": "Candidate display name",
+    "base_cv_version": "cv-version"
+  },
   "company_key": "company-name-iso2",
   "job_title": "Target job title",
   "job_ad_hash": "hash-of-job-ad",
@@ -582,7 +656,9 @@ The task must preserve the existing product rules:
   "fit_assessment": {
     "level": "strong | solid | stretch | poor",
     "explanation": "Fit explanation.",
-    "relevant_experience": ["Relevant experience supported by the CV."],
+    "relevant_experience": [
+      "Relevant experience supported by the selected candidate CV."
+    ],
     "missing_requirements": ["Missing requirement."]
   },
   "tailored_cv": {
@@ -653,6 +729,7 @@ The application preview should show the saved application as one coherent packag
 
 For acceptable-fit applications, the preview should include:
 
+- selected candidate profile
 - fit assessment
 - gap analysis
 - review controls
@@ -663,6 +740,7 @@ For acceptable-fit applications, the preview should include:
 
 For poor-fit applications, the preview should include:
 
+- selected candidate profile
 - fit assessment
 - missing requirements
 - gap analysis
@@ -699,8 +777,16 @@ Company research and interview preparation should show clear states:
 
 ### Acceptance Criteria
 
+- [ ] A candidate profile dropdown exists in the application input flow.
+- [ ] User can select Aleksandar Markovic or Svetlana Markovic before starting the workflow.
+- [ ] Selected candidate profile determines which structured CV JSON file is loaded.
+- [ ] Selected `profile_id` is stored in the application record.
+- [ ] Saved applications show which candidate profile was used.
+- [ ] Application preview shows which candidate profile was used.
+- [ ] PDF export uses the accepted tailored CV for the selected candidate.
+- [ ] Both candidate CV JSON files validate against the same CV model.
 - [ ] A complete application package model exists.
-- [ ] The model includes CV optimization, fit assessment, gap analysis, company research and interview preparation.
+- [ ] The model includes candidate profile, CV optimization, fit assessment, gap analysis, company research and interview preparation.
 - [ ] The model preserves the existing poor-fit rule.
 - [ ] Poor-fit applications must not contain a tailored CV.
 - [ ] Acceptable-fit applications must contain a tailored CV.
@@ -721,7 +807,7 @@ Company research and interview preparation should show clear states:
 - [ ] The application preview shows CV, fit assessment, gap analysis, company research and interview preparation when available.
 - [ ] The application preview clearly shows when a supporting feature is limited, missing, failed or skipped.
 - [ ] Firestore records include prompt and model version metadata for each workflow.
-- [ ] Old saved application records without company research or interview preparation can still load, or fail safely with a clear migration note.
+- [ ] Old saved application records without candidate metadata, company research or interview preparation can still load, or fail safely with a clear migration note.
 - [ ] The main application workflow can produce a complete package without merging all AI work into one prompt.
 - [ ] No unvalidated AI output is displayed or stored.
 
@@ -729,21 +815,33 @@ Company research and interview preparation should show clear states:
 
 Success is measured by:
 
+- User can choose which candidate profile is used.
+- The selected candidate CV is the only CV sent to the AI workflow.
+- Saved applications clearly show the selected candidate.
 - A saved application can be reopened and shows all available validated outputs.
 - Fit assessment is visible without needing to inspect Firestore or logs.
 - Gap analysis is visible without needing to inspect Firestore or logs.
-- CV optimization still works exactly as before.
+- CV optimization still works exactly as before for the original profile.
+- CV optimization also works for Svetlana’s structured CV profile.
 - Company research can be reused through the application package.
-- Interview preparation is connected to the correct application.
+- Interview preparation is connected to the correct application and candidate.
 - Supporting feature status is visible and understandable.
 - Failed or limited supporting features do not corrupt the main CV result.
 - Existing PDF export behavior still works after the contract extension.
-- Stored records contain enough metadata to understand which prompt and model generated each part.
+- Stored records contain enough metadata to understand which candidate, prompt and model generated each part.
 
 ### Test Cases
 
 - [ ] Existing acceptable-fit application with only CV optimization still loads.
 - [ ] Existing poor-fit application still loads and does not contain a tailored CV.
+- [ ] Candidate dropdown shows both supported profiles.
+- [ ] Selecting Aleksandar loads `cv_sale.json`.
+- [ ] Selecting Svetlana loads `cv_svetlana.json`.
+- [ ] New application for Aleksandar stores `profile_id=sale`.
+- [ ] New application for Svetlana stores `profile_id=svetlana`.
+- [ ] Saved application preview displays selected candidate.
+- [ ] PDF download for accepted Aleksandar application uses Aleksandar tailored CV.
+- [ ] PDF download for accepted Svetlana application uses Svetlana tailored CV.
 - [ ] New application package with CV optimization only validates.
 - [ ] New application package with CV optimization and company research validates.
 - [ ] New application package with CV optimization, company research and interview preparation validates.
@@ -771,8 +869,12 @@ Success is measured by:
 
 ### Notes
 
+- This task should not add general CV upload.
+- This task should not add automatic CV parsing.
+- Svetlana’s CV should be manually converted into structured JSON for the MVP.
+- Both profiles should use the same `CVProfile` schema.
 - This task should not combine all AI workflows into one large prompt.
-- The purpose is integration, contract consistency and preview completeness, not prompt consolidation.
+- The purpose is candidate selection, integration, contract consistency and preview completeness.
 - Fit assessment and gap analysis are already core outputs and must be displayed before adding more supporting features.
 - Company research remains reusable company-level data.
 - Interview preparation remains application-specific data.
@@ -788,47 +890,191 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Verify that the complete application workflow works end-to-end and fails safely across normal, edge-case and failure scenarios.
 
 ### Description
 
-What is included in this task?
+This task validates the full MVP workflow after the main features have been implemented.
 
-What is explicitly not included?
+At this point, the application should include:
+
+- CV optimization
+- draft application creation
+- fit assessment
+- gap analysis
+- company research
+- interview preparation
+- inline CV review
+- targeted revision
+- CV acceptance
+- direct PDF download
+- saved application reopening
+
+This task does not add major new product features.
+
+Its purpose is to prove that the full system works as one product and that individual parts do not break each other.
+
+The tests should cover:
+
+- happy-path workflow
+- poor-fit workflow
+- draft and accepted application behavior
+- saved application reopening
+- company research cache behavior
+- interview preparation generation
+- inline review state
+- targeted revision behavior
+- PDF export rules
+- invalid AI output
+- invalid user input
+- Firestore failures
+- AI failures
+- partial-result scenarios
+
+The system should never display or store unvalidated AI output.
+
+When something fails, the user should receive a clear high-level error message, and the application should preserve any previously valid data.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-012 must be completed.
+- TASK-013 must be completed.
+- TASK-014 must be completed.
+- TASK-019 must be completed.
+- Existing automated task-level tests must be passing.
+- Test data and at least one realistic job ad must be available.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Define full workflow test scenarios.
+- [ ] Define realistic test inputs.
+- [ ] Prepare one strong-fit job ad test case.
+- [ ] Prepare one solid-fit or stretch-fit job ad test case.
+- [ ] Prepare one poor-fit job ad test case.
+- [ ] Prepare one company with enough public data.
+- [ ] Prepare one company with limited public data.
+- [ ] Test complete happy path from job ad input to accepted PDF download.
+- [ ] Test poor-fit path from job ad input to useful preparation output.
+- [ ] Test saved application reopening from `My Applications`.
+- [ ] Test saved company report reopening from `Companies`.
+- [ ] Test company research cache hit.
+- [ ] Test company research refresh when report is older than 3 months.
+- [ ] Test interview preparation generation and storage.
+- [ ] Test inline review decisions from TASK-019.
+- [ ] Test targeted revision for one editable CV item.
+- [ ] Test that unrelated CV content does not change during targeted revision.
+- [ ] Test accept CV flow.
+- [ ] Test direct PDF download after acceptance.
+- [ ] Test that draft PDF download remains blocked.
+- [ ] Test invalid company input.
+- [ ] Test missing or too-short job ad input.
+- [ ] Test invalid AI JSON response.
+- [ ] Test AI response with unsupported CV claims.
+- [ ] Test AI response with unrequested revision fields.
+- [ ] Test company research with insufficient public information.
+- [ ] Test interview preparation with generic or duplicated questions.
+- [ ] Test Firestore read failure.
+- [ ] Test Firestore write failure.
+- [ ] Test AI provider failure.
+- [ ] Test partial-result behavior when company research succeeds but interview preparation fails.
+- [ ] Test partial-result behavior when CV optimization succeeds but supporting feature fails.
+- [ ] Add controlled manual UI checklist.
+- [ ] Add or update automated test scripts where practical.
+- [ ] Save final test results log.
+- [ ] Record known limitations and accepted non-blocking issues.
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] Complete happy-path workflow works without editing code.
+- [ ] User can submit a valid job ad and company input.
+- [ ] System creates a saved draft application.
+- [ ] Fit assessment is displayed.
+- [ ] Gap analysis is displayed.
+- [ ] Company research is generated or reused.
+- [ ] Interview preparation is generated and saved.
+- [ ] Inline CV review works.
+- [ ] Targeted revision works and keeps application in draft status.
+- [ ] Accept CV changes status to `accepted`.
+- [ ] Accepted CV can be downloaded as PDF.
+- [ ] Draft CV cannot be downloaded as final PDF.
+- [ ] Saved applications can be reopened.
+- [ ] Saved company reports can be reopened.
+- [ ] Poor-fit workflow stops CV tailoring.
+- [ ] Poor-fit workflow still shows useful gap and preparation guidance.
+- [ ] Invalid input is rejected before AI calls where possible.
+- [ ] Invalid AI output is rejected before display or storage.
+- [ ] Firestore failures return controlled errors.
+- [ ] AI failures return controlled errors.
+- [ ] Partial supporting-feature failures do not corrupt the main CV result.
+- [ ] Previously valid saved data is preserved after a failed later step.
+- [ ] Logs provide enough information to diagnose failures.
+- [ ] Final test log shows pass/fail result for every critical scenario.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- Full workflow can be demonstrated from start to finish.
+- All critical automated tests pass.
+- Manual UI checklist passes for the main user journey.
+- No unvalidated AI output is displayed.
+- No draft CV can be exported as final PDF.
+- Failed company research or interview preparation does not break CV optimization.
+- Saved records can be reopened after app restart.
+- Error messages are user-safe and understandable.
+- Known remaining issues are documented before refactoring.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Strong-fit application completes full workflow and downloads accepted PDF.
+- [ ] Solid-fit or stretch-fit application completes full workflow with gap guidance.
+- [ ] Poor-fit application stops CV tailoring and displays preparation recommendations.
+- [ ] Existing fresh company research is reused.
+- [ ] Expired company research is refreshed.
+- [ ] Limited company research produces a limited but valid report.
+- [ ] Interview preparation generates 10–15 personalized questions.
+- [ ] Interview preparation rejects duplicated or generic-only questions.
+- [ ] Inline review accepts one AI suggestion and keeps one original value.
+- [ ] Inline review revision changes only the selected editable item.
+- [ ] User accepts CV after review and PDF download becomes available.
+- [ ] Draft PDF export remains blocked.
+- [ ] Saved application opens correctly from `My Applications`.
+- [ ] Saved company report opens correctly from `Companies`.
+- [ ] Invalid company format is rejected.
+- [ ] Empty job title is rejected.
+- [ ] Empty or too-short job ad is rejected.
+- [ ] AI timeout or provider failure returns a controlled error.
+- [ ] AI invalid JSON response returns a controlled error.
+- [ ] AI unsupported CV claim is rejected.
+- [ ] Firestore read failure returns a controlled error.
+- [ ] Firestore write failure returns a controlled error.
+- [ ] Application reload after failure keeps last valid saved state.
+- [ ] Browser/app rerun does not lose critical draft state.
+- [ ] Accepted application remains accepted after reload.
+- [ ] Old saved application record without new supporting fields loads safely or shows a clear migration/fallback state.
+
+### Manual UI Checklist
+
+- [ ] Sidebar navigation is understandable.
+- [ ] CV-first flow from TASK-019 is usable.
+- [ ] Fit assessment is easy to find.
+- [ ] Gap analysis is easy to understand.
+- [ ] Company report is readable and not too long.
+- [ ] Interview preparation is practical and not generic.
+- [ ] Inline review controls are not confusing.
+- [ ] Error messages do not expose raw technical details.
+- [ ] PDF filename is safe and understandable.
+- [ ] Final PDF opens correctly.
+- [ ] Final PDF content matches accepted CV content.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- This task is a verification and hardening task, not a feature-expansion task.
+- Small bugs may be fixed during this task if they block workflow completion.
+- Larger design or architecture issues should be recorded for TASK-011.
+- Cosmetic issues should not block completion unless they prevent real use.
+- Any accepted limitation must be written down before deployment preparation.
+- Final output of this task should include a test results log and a short list of remaining known issues.
 
 ## TASK-016 — Prepare Docker and Production Deployment
 
@@ -838,47 +1084,173 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Prepare the completed application for reliable portfolio demo deployment using Docker, environment configuration and clear run instructions.
 
 ### Description
 
-What is included in this task?
+This task prepares the project to run outside the local development setup.
 
-What is explicitly not included?
+The goal is not to add new product features.
+
+The goal is to make the application easier to run, demonstrate and deploy in a repeatable way.
+
+Local development can still use direct commands such as:
+
+```text
+streamlit run streamlit/app.py
+uvicorn api:app --reload
+```
+
+Docker is introduced for portfolio and deployment readiness, not because local development requires it.
+
+Docker should make it easier to:
+
+- run the app on another machine
+- run the app on the home server laptop
+- prepare a simple portfolio demo
+- manage environment variables consistently
+- document service startup clearly
+- show that the project is more than a local script
+
+The deployment setup should remain simple.
+
+The project does not need advanced production infrastructure, Kubernetes, CI/CD pipelines or complex cloud architecture for the MVP.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-011 must be completed first.
+- Complete workflow tests must be passing.
+- Refactoring and architecture review must be completed.
+- `.env.example` must be up to date.
+- Required secrets and credentials must be documented but not committed.
+- Local run commands must still work before Docker is added.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Review current local startup commands.
+- [ ] Review required environment variables.
+- [ ] Update `.env.example`.
+- [ ] Confirm `.env` is ignored by Git.
+- [ ] Confirm Firebase credentials are ignored by Git.
+- [ ] Define Docker deployment approach.
+- [ ] Decide whether Streamlit and FastAPI run in one container or separate containers.
+- [ ] Create `Dockerfile` or separate Dockerfiles if needed.
+- [ ] Create `docker-compose.yml`.
+- [ ] Add service for FastAPI backend if still required by deployment flow.
+- [ ] Add service for Streamlit frontend.
+- [ ] Configure ports.
+- [ ] Configure environment variable loading.
+- [ ] Configure Firebase credential mount or secret path.
+- [ ] Add container health or startup checks where simple and useful.
+- [ ] Ensure logs are visible from Docker.
+- [ ] Test Docker build locally.
+- [ ] Test Docker run locally.
+- [ ] Test Docker Compose startup locally.
+- [ ] Test app access from browser.
+- [ ] Test main workflow in Docker environment.
+- [ ] Test accepted PDF download in Docker environment.
+- [ ] Test Firestore access in Docker environment.
+- [ ] Document local Docker commands.
+- [ ] Document non-Docker local development commands.
+- [ ] Document deployment assumptions.
+- [ ] Document known limitations.
+- [ ] Keep deployment setup simple enough for portfolio explanation.
+
+### Deployment Direction
+
+The MVP deployment target should support a simple portfolio demo.
+
+Possible options:
+
+- local Docker Compose demo
+- home server laptop deployment
+- simple cloud deployment later
+
+The first deployment target should be Docker Compose because it is:
+
+- easy to run locally
+- easy to explain
+- reusable on the home server
+- enough for MVP portfolio demonstration
+
+Advanced deployment options are out of scope unless later required.
+
+### Environment Variables
+
+The deployment setup should clearly document required variables.
+
+Expected examples:
+
+```text
+GEMINI_API_KEY=
+GEMINI_MODEL=
+FIREBASE_CREDENTIALS_PATH=
+BACKEND_API_KEY=
+```
+
+The exact list must match the real `config.py`.
+
+Secrets must not be committed.
+
+Firebase service account JSON must not be committed.
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] Non-Docker local development commands still work.
+- [ ] Docker build completes successfully.
+- [ ] Docker Compose starts the required services.
+- [ ] Streamlit frontend is reachable from the browser.
+- [ ] FastAPI backend is reachable if used by the deployed flow.
+- [ ] Required environment variables are loaded correctly.
+- [ ] Firebase credentials are available inside the container without being committed.
+- [ ] Gemini API configuration works inside Docker.
+- [ ] Firestore read/write works inside Docker.
+- [ ] Main workflow can run inside Docker.
+- [ ] Accepted CV PDF can be downloaded inside Docker.
+- [ ] Logs are visible from container output.
+- [ ] `.env.example` is current.
+- [ ] `.gitignore` prevents committing local secrets and credentials.
+- [ ] README or deployment documentation explains how to run the app locally and with Docker.
+- [ ] Deployment setup remains simple and understandable.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- A clean clone of the repo can be configured and started with documented commands.
+- Docker Compose can start the application without manual code changes.
+- The app can be demonstrated from browser after Docker startup.
+- The main workflow still works in the Docker environment.
+- Secrets remain outside Git.
+- Deployment steps are understandable for a portfolio reviewer.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Build Docker image from clean project state.
+- [ ] Start Docker Compose with valid `.env`.
+- [ ] Start Docker Compose without `.env` and confirm a controlled configuration error.
+- [ ] Start Docker Compose with missing Firebase credentials and confirm a controlled error.
+- [ ] Open Streamlit app in browser.
+- [ ] Open FastAPI health endpoint if available.
+- [ ] Submit a valid application workflow inside Docker.
+- [ ] Load saved application inside Docker.
+- [ ] Download accepted PDF inside Docker.
+- [ ] Confirm logs appear in Docker output.
+- [ ] Stop and restart containers.
+- [ ] Confirm saved Firestore data can still be reopened after restart.
+- [ ] Confirm no secret files are staged by Git.
+- [ ] Confirm README commands match actual behavior.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- Docker is for repeatable demo and deployment readiness, not for replacing local development.
+- Keep this task simple.
+- Do not introduce Kubernetes, complex CI/CD or advanced cloud infrastructure.
+- Do not hardcode secrets in Docker files.
+- Do not copy Firebase service account JSON into the image.
+- Prefer mounted credentials or environment-based configuration.
+- Deployment documentation should be short and practical.
+- If deployment complexity becomes too high, document the limitation and keep the portfolio demo local.
 
 ## TASK-017 — Finalize Documentation and Conduct Project Review
 
@@ -888,47 +1260,227 @@ Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Finalize the project documentation and review the completed MVP so it can be presented clearly as a portfolio project.
 
 ### Description
 
-What is included in this task?
+This task closes the MVP.
 
-What is explicitly not included?
+The goal is not to add new features.
+
+The goal is to make sure the project is understandable, demonstrable and honestly documented.
+
+At this point, the application should already include:
+
+- completed main workflow
+- company research
+- interview preparation
+- application package integration
+- CV-first inline review
+- complete workflow testing
+- architecture refactoring review
+- Docker and deployment preparation
+
+This task finalizes the written project story.
+
+The documentation should explain:
+
+- what the product does
+- why it was built
+- which problem it solves
+- how the architecture works
+- how AI is used
+- how validation protects the output
+- how Firestore persistence is used
+- how to run the project locally
+- how to run the project with Docker
+- what is in scope for the MVP
+- what is intentionally out of scope
+- what decisions were made and why
+- what limitations remain
+- what future improvements are possible
+
+The project review should also evaluate whether the MVP is strong enough for portfolio use.
+
+The final output should help the project owner explain the project in interviews, portfolio pages, GitHub README and future discussions.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-016 must be completed first.
+- Docker/deployment notes must be available.
+- Final workflow test log must be available.
+- Architecture review notes must be available.
+- Current project documentation must be available.
+- Final code should be committed or ready to commit.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Review final project scope.
+- [ ] Review final architecture documentation.
+- [ ] Review final decisions documentation.
+- [ ] Review project board and task statuses.
+- [ ] Update README with final MVP description.
+- [ ] Update README with local setup instructions.
+- [ ] Update README with Docker setup instructions.
+- [ ] Update README with environment variables.
+- [ ] Update README with demo workflow.
+- [ ] Update README with screenshots or screenshot placeholders if useful.
+- [ ] Update PROJECT_SCOPE.md only where scope changed.
+- [ ] Update ARCHITECTURE.md only where implementation changed.
+- [ ] Update DECISIONS.md only where decisions changed.
+- [ ] Update PROJECT_BOARD.md with final task statuses.
+- [ ] Add final known limitations section.
+- [ ] Add future improvements section.
+- [ ] Add project review notes.
+- [ ] Add final test summary.
+- [ ] Add deployment summary.
+- [ ] Add portfolio explanation summary.
+- [ ] Check that documentation does not claim features that are not implemented.
+- [ ] Check that documentation does not hide known limitations.
+- [ ] Check that setup instructions are realistic.
+- [ ] Check that secrets and credentials are not exposed.
+- [ ] Check that screenshots, logs or examples do not contain private data.
+- [ ] Prepare final commit message suggestion.
+- [ ] Prepare short portfolio description.
+- [ ] Prepare longer project explanation for interviews.
+
+### Documentation Outputs
+
+The final documentation set should include:
+
+- `README.md`
+- `PROJECT_SCOPE.md`
+- `ARCHITECTURE.md`
+- `DECISIONS.md`
+- `PROJECT_BOARD.md`
+- final test results log
+- architecture review notes
+- deployment notes or Docker run instructions
+- known limitations
+- future improvements
+
+### Project Review Areas
+
+#### Product Review
+
+Review whether the product clearly solves the intended problem.
+
+Check:
+
+- user value
+- MVP focus
+- workflow clarity
+- human-in-the-loop review
+- interview preparation usefulness
+- company research usefulness
+- honest handling of poor-fit roles
+
+#### AI Review
+
+Review whether AI is used responsibly and effectively.
+
+Check:
+
+- prompt structure
+- structured output
+- validation
+- no invented CV facts
+- poor-fit stop behavior
+- targeted revision safety
+- company research limitations
+- interview preparation personalization
+
+#### Technical Review
+
+Review whether the technical implementation is credible.
+
+Check:
+
+- modular architecture
+- Streamlit frontend
+- FastAPI backend if used in final flow
+- service layer
+- AI workflows
+- Firestore persistence
+- PDF generation
+- Docker deployment
+- error handling
+- logging
+- tests
+
+#### Portfolio Review
+
+Review whether the project is explainable to another person.
+
+Check:
+
+- clear README
+- clear screenshots or demo flow
+- clear architecture summary
+- clear business value
+- clear technical value
+- clear AI-specific value
+- clear limitations
+- clear next steps
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] README explains what the project does.
+- [ ] README explains how to run the project locally.
+- [ ] README explains how to run the project with Docker.
+- [ ] README lists required environment variables without exposing secrets.
+- [ ] PROJECT_SCOPE.md matches the final MVP.
+- [ ] ARCHITECTURE.md matches the final implementation.
+- [ ] DECISIONS.md reflects important final decisions.
+- [ ] PROJECT_BOARD.md has correct final task statuses.
+- [ ] Final test results are summarized.
+- [ ] Deployment approach is documented.
+- [ ] Known limitations are documented.
+- [ ] Future improvements are documented.
+- [ ] No documentation claims unimplemented features.
+- [ ] No private data, credentials or secrets are included.
+- [ ] The project can be explained clearly in 2–3 minutes.
+- [ ] The project can also be explained in deeper technical detail.
+- [ ] Portfolio summary is ready to reuse.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- A new reviewer can understand the project from README and docs.
+- The setup instructions can be followed without guessing.
+- The MVP scope is clear.
+- The architecture is clear.
+- AI usage and validation are clear.
+- Known limitations are honestly described.
+- The final project story is strong enough for portfolio use.
+- The project owner can explain what was built, why it matters and how it works.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Follow README local setup instructions from clean environment.
+- [ ] Follow README Docker setup instructions from clean environment.
+- [ ] Confirm all listed environment variables are actually used.
+- [ ] Confirm all documented commands work.
+- [ ] Confirm project board statuses match completed work.
+- [ ] Confirm screenshots or demo notes match the current UI.
+- [ ] Confirm no secret files are referenced as committed files.
+- [ ] Confirm no documentation says browser PDF export is the main flow.
+- [ ] Confirm direct PDF export is correctly documented.
+- [ ] Confirm company research and interview preparation are documented only if implemented.
+- [ ] Confirm known limitations are included.
+- [ ] Confirm future improvements are separated from MVP scope.
+- [ ] Confirm final portfolio summary is accurate.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- This task should not introduce new product scope.
+- Do not rewrite documentation unnecessarily.
+- Change only what is needed to match the final implementation.
+- Be honest about limitations.
+- The final documentation should support both GitHub readers and interview discussion.
+- The portfolio story should emphasize product thinking, AI workflow design, validation, persistence and human review.
+- The final review should explain what was learned and what would be improved next.
 
 ## TASK-019 — Implement CV-First Inline Review and Granular Change Requests
 
@@ -1225,51 +1777,248 @@ Questions to answer:
 
 ### Status
 
-On Hold
+Backlog
 
 ### Goal
 
-What should this task achieve and why is it needed?
+Review and clean the completed MVP codebase before deployment so the project is reliable, understandable and ready for portfolio presentation.
 
 ### Description
 
-What is included in this task?
+This task is performed after the complete workflow has been implemented and tested.
 
-What is explicitly not included?
+The goal is not to add new product features.
+
+The goal is to review the real codebase that now exists, identify structural issues, clean unnecessary complexity and make sure the project architecture still matches the documented product direction.
+
+At this point, the application should already include:
+
+- CV optimization
+- fit assessment
+- gap analysis
+- company research
+- interview preparation
+- inline CV review
+- targeted revision
+- CV acceptance
+- direct PDF generation
+- saved application reopening
+- complete workflow testing
+
+This task should use the results of TASK-015 as input.
+
+Any known issues, repeated code, unclear boundaries, fragile logic or confusing file structure should be reviewed before Docker and deployment preparation.
+
+The review should focus on:
+
+- whether each module has a clear responsibility
+- whether frontend, service, AI workflow, validation, storage and rendering logic are properly separated
+- whether models and contracts are understandable
+- whether errors are handled consistently
+- whether logs are useful
+- whether tests cover the important behavior
+- whether temporary scripts, outputs or test artifacts should be removed or organized
+- whether documentation still matches the implemented architecture
+
+The task should produce a cleaner project, not a redesigned project.
+
+Large product changes should not be introduced here.
 
 ### Dependencies
 
-Which tasks or decisions must be completed first?
+- TASK-015 must be completed first.
+- Final test results log must be available.
+- Known issues from complete workflow testing must be available.
+- Current architecture and decisions documentation must be available.
+- Code should be committed before refactoring starts.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Review TASK-015 test results and known issues.
+- [ ] Create a short refactoring checklist before changing code.
+- [ ] Review project folder structure.
+- [ ] Review Streamlit UI entry points.
+- [ ] Review FastAPI backend entry points.
+- [ ] Review service layer responsibilities.
+- [ ] Review AI workflow responsibilities.
+- [ ] Review validation layer responsibilities.
+- [ ] Review Firestore storage logic.
+- [ ] Review PDF rendering logic.
+- [ ] Review configuration and environment variable usage.
+- [ ] Review logging consistency.
+- [ ] Review error handling consistency.
+- [ ] Review naming consistency across files, functions and models.
+- [ ] Review duplicated or near-duplicated logic.
+- [ ] Remove unused imports, dead code and obsolete helper scripts.
+- [ ] Move temporary files or generated outputs out of the main project flow.
+- [ ] Ensure no secrets, credentials or private files are tracked.
+- [ ] Ensure `.gitignore` covers local-only files.
+- [ ] Check whether model names match their real purpose.
+- [ ] Check whether prompt versions and schema versions are clear.
+- [ ] Check whether old records and migration/fallback behavior are understandable.
+- [ ] Confirm that no refactor weakens validation.
+- [ ] Confirm that no refactor changes product behavior unintentionally.
+- [ ] Run automated tests after each meaningful refactor group.
+- [ ] Run complete workflow smoke test after refactoring.
+- [ ] Update documentation only where implementation changed.
+- [ ] Record final architecture review notes.
+
+### Review Areas
+
+#### Frontend
+
+Review whether Streamlit code is readable and separated enough.
+
+Check:
+
+- navigation
+- page rendering
+- sidebar logic
+- CV preview rendering
+- inline review rendering
+- fit and gap display
+- company report display
+- interview preparation display
+- PDF download controls
+- user-safe error messages
+
+#### Services
+
+Review whether service modules are clear orchestration boundaries.
+
+Check:
+
+- application creation
+- company research
+- interview preparation
+- revision handling
+- acceptance handling
+- PDF export handling
+- Firestore update usage
+
+#### AI Layer
+
+Review whether AI workflows are modular and testable.
+
+Check:
+
+- CV optimization workflow
+- company research workflow
+- interview preparation workflow
+- targeted revision workflow
+- prompt builders
+- response cleaner
+- validation calls
+- retry behavior
+
+#### Validation Layer
+
+Review whether validation still protects the product.
+
+Check:
+
+- AI JSON structure
+- CV factual boundaries
+- revision scope
+- company research source/limitation rules
+- interview preparation personalization rules
+- application package consistency
+- poor-fit rules
+
+#### Storage Layer
+
+Review whether Firestore records are stable and understandable.
+
+Check:
+
+- `companies` collection
+- `applications` collection
+- normalized company keys
+- timestamps
+- status fields
+- prompt and schema versions
+- old record compatibility
+- controlled failure behavior
+
+#### Project Hygiene
+
+Review whether the repository is clean enough for portfolio use.
+
+Check:
+
+- temporary scripts
+- generated outputs
+- old test logs
+- unused files
+- duplicate files
+- naming consistency
+- documentation accuracy
+- README instructions
+- `.env.example`
+- `.gitignore`
 
 ### Acceptance Criteria
 
-- [ ] Requirement 1
-- [ ] Requirement 2
-- [ ] Requirement 3
+- [ ] Codebase structure is understandable.
+- [ ] No major temporary implementation files remain in the main project flow.
+- [ ] No secrets or credentials are tracked.
+- [ ] `.gitignore` covers local-only files.
+- [ ] Frontend responsibilities are clear.
+- [ ] Service-layer responsibilities are clear.
+- [ ] AI workflow responsibilities are clear.
+- [ ] Validation responsibilities are clear.
+- [ ] Storage responsibilities are clear.
+- [ ] Error handling is consistent enough for MVP.
+- [ ] Logging is useful for debugging.
+- [ ] Prompt and schema versions are clear.
+- [ ] Tests still pass after refactoring.
+- [ ] Complete workflow smoke test passes after refactoring.
+- [ ] Documentation is updated only where implementation changed.
+- [ ] Final architecture review notes are written.
+- [ ] No product behavior is intentionally changed unless documented.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Metric 1
-- Metric 2
+- The project can be explained file-by-file at a high level.
+- The main workflow can still run after refactoring.
+- Automated tests still pass.
+- The complete workflow smoke test still passes.
+- No validation or safety rule was weakened.
+- The repository looks clean enough for portfolio review.
+- The documentation still matches the implementation.
+- Remaining technical debt is documented instead of hidden.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Run all existing automated tests before refactoring.
+- [ ] Run all existing automated tests after refactoring.
+- [ ] Run complete workflow smoke test after refactoring.
+- [ ] Create one new draft application after refactoring.
+- [ ] Open saved application after refactoring.
+- [ ] Accept CV after refactoring.
+- [ ] Download accepted PDF after refactoring.
+- [ ] Confirm draft PDF export is still blocked.
+- [ ] Confirm invalid AI output is still rejected.
+- [ ] Confirm targeted revision still changes only selected content.
+- [ ] Confirm company research cache still works.
+- [ ] Confirm interview preparation still loads from saved application.
+- [ ] Confirm poor-fit workflow still stops CV tailoring.
+- [ ] Confirm app starts locally with documented commands.
+- [ ] Confirm no local secret files are staged in Git.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- This task should not become a product redesign.
+- This task should not add major new features.
+- Refactoring should be done in small safe groups.
+- Commit before starting this task.
+- Consider creating a separate branch for this task.
+- Prefer clarity over clever abstractions.
+- Keep the code understandable for future portfolio explanation.
+- Any larger architectural concern that cannot be fixed safely should be documented as known technical debt.
+- This task must be completed before Docker and deployment preparation.
 
 ---
 

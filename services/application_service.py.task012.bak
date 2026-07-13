@@ -32,10 +32,6 @@ from firebase import (
     save_application,
 )
 from logger import logger
-from services.company_service import (
-    CompanyResearchError,
-    get_or_create_company_research,
-)
 
 
 SCHEMA_VERSION = "1.0"
@@ -62,10 +58,7 @@ class SavedApplicationResult(BaseModel):
     fit_assessment: FitAssessment
     tailored_cv: CVProfile | None
     gap_analysis: GapAnalysis
-    candidate: dict[str, Any] | None = None
-    company_research: dict[str, Any] | None = None
     interview_prep: dict[str, Any] | None = None
-    workflow_status: dict[str, Any] | None = None
 
     base_cv_version: str
     schema_version: str
@@ -199,11 +192,6 @@ def _build_application_payload(
 ) -> dict[str, Any]:
     return {
         "profile_id": original_cv.profile_id,
-        "candidate": {
-            "profile_id": original_cv.profile_id,
-            "display_name": original_cv.personal_info.full_name,
-            "base_cv_version": original_cv.cv_version,
-        },
         "company_key": normalize_company_key(
             company_name
         ),
@@ -227,20 +215,7 @@ def _build_application_payload(
             .gap_analysis
             .model_dump(mode="python")
         ),
-        "company_research": None,
         "interview_prep": None,
-        "workflow_status": {
-            "cv_optimization": "complete",
-            "fit_assessment": "complete",
-            "gap_analysis": "complete",
-            "company_research": "not_started",
-            "interview_prep": "not_started",
-            "pdf_export": (
-                "available"
-                if tailored_cv is not None
-                else "blocked"
-            ),
-        },
         "base_cv_version": original_cv.cv_version,
         "schema_version": SCHEMA_VERSION,
         "prompt_version": PROMPT_VERSION,
@@ -359,17 +334,6 @@ def create_draft_application(
     )
 
     try:
-        try:
-            get_or_create_company_research(
-                company_name
-            )
-
-        except CompanyResearchError:
-            logger.exception(
-                "Company research failed but CV optimization will continue: company=%s",
-                company_name,
-            )
-
         workflow_result = optimize_cv_for_role(
             job_ad_text=job_ad_text,
             company_name=company_name,

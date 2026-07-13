@@ -1,0 +1,16 @@
+{
+  "profiles": [
+    {
+      "profile_id": "sale",
+      "display_name": "Aleksandar Markovic",
+      "cv_path": "cv_data/cv_sale.json",
+      "is_default": true
+    },
+    {
+      "profile_id": "svetlana",
+      "display_name": "Svetlana Markovic",
+      "cv_path": "cv_data/cv_svetlana.json",
+      "is_default": false
+    }
+  ]
+}

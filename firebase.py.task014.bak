@@ -87,10 +87,7 @@ class ApplicationRecordInput(StorageModel):
     fit_assessment: dict[str, Any] = Field(min_length=1)
     tailored_cv: dict[str, Any] | None = None
     gap_analysis: dict[str, Any] = Field(min_length=1)
-    candidate: dict[str, Any] | None = None
-    company_research: dict[str, Any] | None = None
     interview_prep: dict[str, Any] | None = None
-    workflow_status: dict[str, Any] | None = None
 
     base_cv_version: str = Field(min_length=1, max_length=50)
     schema_version: str = Field(min_length=1, max_length=50)

@@ -87,10 +87,7 @@ class ApplicationRecordInput(StorageModel):
     fit_assessment: dict[str, Any] = Field(min_length=1)
     tailored_cv: dict[str, Any] | None = None
     gap_analysis: dict[str, Any] = Field(min_length=1)
-    candidate: dict[str, Any] | None = None
-    company_research: dict[str, Any] | None = None
     interview_prep: dict[str, Any] | None = None
-    workflow_status: dict[str, Any] | None = None
 
     base_cv_version: str = Field(min_length=1, max_length=50)
     schema_version: str = Field(min_length=1, max_length=50)
@@ -656,62 +653,3 @@ def update_application(
     )
 
     return application_id
-def list_companies() -> list[dict[str, Any]]:
-    client = get_firestore_client()
-
-    snapshots = _run_with_retry(
-        operation_name="list companies",
-        operation=lambda: list(
-            client.collection(
-                COMPANIES_COLLECTION
-            ).stream(
-                retry=None,
-                timeout=FIRESTORE_TIMEOUT_SECONDS,
-            )
-        ),
-    )
-
-    records: list[dict[str, Any]] = []
-
-    for snapshot in snapshots:
-        data = snapshot.to_dict()
-
-        if data is None:
-            logger.error(
-                "Company record contains no data: %s",
-                snapshot.id,
-            )
-            continue
-
-        try:
-            validated_record = _validate_record(
-                CompanyStoredRecord,
-                data,
-                context=(
-                    f"stored company {snapshot.id}"
-                ),
-            )
-        except ValidationError:
-            logger.error(
-                "Invalid company skipped while listing: %s",
-                snapshot.id,
-            )
-            continue
-
-        records.append(
-            validated_record.model_dump(
-                mode="python"
-            )
-        )
-
-    records.sort(
-        key=lambda item: item["updated_at"],
-        reverse=True,
-    )
-
-    logger.info(
-        "Company records listed: count=%s",
-        len(records),
-    )
-
-    return records

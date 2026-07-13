@@ -1,0 +1,120 @@
+{
+  "profile_id": "svetlana",
+  "cv_version": "svetlana-v1-2026-07-13",
+  "personal_info": {
+    "full_name": "Svetlana Markovic",
+    "location": "Gouda, NL",
+    "phone": "+31 6 81 34 97 57",
+    "email": "svetlanajlc@gmail.com",
+    "linkedin": "not provided"
+  },
+  "professional_summary": "People-focused and commercially minded professional with experience in recruitment, training, and client support. Skilled at identifying talent, conducting interviews, and aligning candidates with opportunities based on their strengths and ambitions. Curious, resilient, and passionate about building meaningful professional connections.",
+  "core_skills": [
+    "Talent sourcing and first-round interviewing",
+    "Strong interpersonal and listening skills",
+    "Commercial awareness and candidate motivation assessment",
+    "Coaching and professional development planning",
+    "High adaptability in fast-paced, people-driven environments",
+    "Proactive communication with candidates and clients",
+    "Passion for long-term matchmaking and professional growth"
+  ],
+  "professional_experience": [
+    {
+      "experience_id": "experience_001",
+      "employer": "EzDerm",
+      "job_title": "Recruitment & Client Support Specialist",
+      "location": "Gouda, Netherlands",
+      "start_date": "2022",
+      "end_date": "Present",
+      "responsibilities": [
+        "Maintain regular contact with clients and respond to inquiries with tailored solutions.",
+        "Work across multiple client accounts, understanding their needs and expectations.",
+        "Review applications, shortlist candidates, and communicate feedback.",
+        "Engage with clients and team leads to discuss role requirements and align on fit.",
+        "Track hiring progress and collaborate closely with U.S.-based hiring managers.",
+        "Communicate with candidates regarding process updates, payment setup, and feedback."
+      ],
+      "achievements": []
+    },
+    {
+      "experience_id": "experience_002",
+      "employer": "EzDerm",
+      "job_title": "Recruitment & Training Specialist",
+      "location": "Belgrade, Serbia",
+      "start_date": "2018",
+      "end_date": "2022",
+      "responsibilities": [
+        "Oversaw the recruitment and onboarding of new team members for client service and billing roles.",
+        "Conducted initial interviews and assessed both hard and soft skills of potential hires.",
+        "Developed individual growth plans and provided coaching to support career progress.",
+        "Created structured training programs to support new employee ramp-up.",
+        "Fostered a culture of learning, collaboration, and ownership within the team.",
+        "Collaborated with management to improve hiring strategy and reduce attrition."
+      ],
+      "achievements": []
+    },
+    {
+      "experience_id": "experience_003",
+      "employer": "Worldwide Clinical Trials",
+      "job_title": "Clinical Trial Administrative Associate",
+      "location": "Belgrade, Serbia",
+      "start_date": "2017",
+      "end_date": "2018",
+      "responsibilities": [
+        "Supported international teams with documentation and archiving for clinical studies.",
+        "Helped ensure compliance with regulatory requirements and organizational systems.",
+        "Acted as a link between departments for document requests and updates.",
+        "Demonstrated a detail-oriented and disciplined work ethic."
+      ],
+      "achievements": []
+    }
+  ],
+  "projects": [],
+  "education": [
+    {
+      "education_id": "education_001",
+      "institution": "Faculty of Medicine - University of Belgrade",
+      "qualification": "Bachelor (BSc) and Master (MSc) studies",
+      "start_date": "2022",
+      "end_date": "Present"
+    },
+    {
+      "education_id": "education_002",
+      "institution": "American Medical Billing Association",
+      "qualification": "Certified Medical Reimbursement Specialist (CMRS)",
+      "start_date": "Completed",
+      "end_date": "Completed"
+    },
+    {
+      "education_id": "education_003",
+      "institution": "The Inga Ellzey Coding Institute - USA",
+      "qualification": "Certified Dermatology Coder",
+      "start_date": "Completed",
+      "end_date": "Completed"
+    }
+  ],
+  "languages": [
+    {
+      "language": "Serbian",
+      "level": "Native"
+    },
+    {
+      "language": "English",
+      "level": "Advanced"
+    },
+    {
+      "language": "Dutch",
+      "level": "Basic"
+    }
+  ],
+  "tools_and_technologies": [
+    "Microsoft Office Suite",
+    "Excel",
+    "Word",
+    "Outlook",
+    "PowerPoint",
+    "Applicant tracking systems",
+    "Recruitment databases",
+    "Digital communication platforms"
+  ]
+}

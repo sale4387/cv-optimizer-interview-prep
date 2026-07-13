@@ -22,15 +22,6 @@ from services.application_service import (
     list_saved_application_results,
     load_saved_application,
 )
-from services.company_service import (
-    CompanyResearchError,
-    list_saved_company_research,
-    load_saved_company_research,
-)
-from services.candidate_profile_service import (
-    CandidateProfileError,
-    list_candidate_options,
-)
 from services.revision_service import (
     ApplicationRevisionError,
     DraftPDFExportError,
@@ -41,12 +32,6 @@ from services.revision_service import (
 )
 from ui.cv_preview import (
     render_cv_preview,
-)
-from ui.inline_review import (
-    render_inline_review,
-)
-from ui.fit_gap_preview import (
-    render_fit_and_gap,
 )
 
 
@@ -102,9 +87,6 @@ def _navigate(
     application_id: (
         str | None
     ) = None,
-    company_key: (
-        str | None
-    ) = None,
 ) -> None:
     parameters = {
         "page": page,
@@ -113,11 +95,6 @@ def _navigate(
     if application_id is not None:
         parameters["application_id"] = (
             application_id
-        )
-
-    if company_key is not None:
-        parameters["company_key"] = (
-            company_key
         )
 
     st.query_params.from_dict(
@@ -178,13 +155,6 @@ def _render_sidebar() -> None:
         _navigate("applications")
         st.rerun()
 
-    if st.sidebar.button(
-        "Companies",
-        width="stretch",
-    ):
-        _navigate("companies")
-        st.rerun()
-
 
 def _render_optimize_page() -> None:
     st.title("Optimize CV")
@@ -194,26 +164,9 @@ def _render_optimize_page() -> None:
         "validated, saved CV result."
     )
 
-    try:
-        candidate_options = (
-            list_candidate_options()
-        )
-
-    except CandidateProfileError as error:
-        st.error(str(error))
-        return
-
     with st.form(
         "cv_optimization_form"
     ):
-        selected_candidate = st.selectbox(
-            "Candidate profile",
-            options=candidate_options,
-            format_func=lambda option: (
-                option.display_name
-            ),
-        )
-
         job_title = st.text_input(
             "Job title",
             max_chars=200,
@@ -272,10 +225,6 @@ def _render_optimize_page() -> None:
                         job_ad_text=(
                             job_ad_text
                         ),
-                        profile_path=(
-                            selected_candidate
-                            .cv_path
-                        ),
                     )
                 )
 
@@ -330,9 +279,49 @@ def _render_poor_fit(
         "the role fit is poor."
     )
 
-    render_fit_and_gap(
-        application
+    st.subheader(
+        "Fit assessment"
     )
+
+    st.write(
+        application
+        .fit_assessment
+        .explanation
+    )
+
+    st.subheader(
+        "Missing requirements"
+    )
+
+    for requirement in (
+        application
+        .fit_assessment
+        .missing_requirements
+    ):
+        st.write(
+            f"- {requirement}"
+        )
+
+    recommendations = [
+        item.preparation_recommendation
+        for item in (
+            application
+            .gap_analysis
+            .unsupported_requirements
+        )
+    ]
+
+    if recommendations:
+        st.subheader(
+            "Recommended next actions"
+        )
+
+        for recommendation in (
+            recommendations
+        ):
+            st.write(
+                f"- {recommendation}"
+            )
 
 
 def _revision_key(
@@ -523,12 +512,6 @@ def _render_review_controls(
         SavedApplicationResult
     ),
 ) -> None:
-    if application.tailored_cv is None:
-        st.info(
-            "Request changes is available only when the application contains a tailored CV."
-        )
-        return
-
     application_id = (
         application.application_id
     )
@@ -689,7 +672,6 @@ def _render_preview_page() -> None:
         return
 
     st.caption(
-        f"{application.profile_id} · "
         f"{application.job_title} · "
         f"{application.company_key} · "
         f"{application.status}"
@@ -700,18 +682,6 @@ def _render_preview_page() -> None:
             application
         )
         return
-
-    render_fit_and_gap(
-        application
-    )
-
-    st.divider()
-
-    render_inline_review(
-        application
-    )
-
-    st.divider()
 
     _render_review_controls(
         application
@@ -747,7 +717,6 @@ def _render_application_card(
         )
 
         st.caption(
-            f"{application.profile_id} · "
             f"{application.company_key} · "
             f"{created_at} · "
             f"{application.status}"
@@ -810,172 +779,6 @@ def _render_applications_page() -> None:
         )
 
 
-
-def _render_company_report(
-    company,
-) -> None:
-    report = company.company_research
-
-    st.title(report.display_name)
-
-    st.caption(
-        f"{report.company_key} · "
-        f"{report.research_status} · "
-        f"confidence: {report.confidence_level}"
-    )
-
-    st.subheader("Short description")
-    st.write(report.short_description)
-
-    st.subheader("Industry")
-    st.write(report.industry.primary_industry)
-    st.caption(report.industry.business_model)
-
-    st.subheader("Products and services")
-    for item in report.products_and_services:
-        st.markdown(f"**{item.name}**")
-        st.write(item.description)
-        st.caption(item.why_it_matters_for_interview)
-
-    st.subheader("Customers and market")
-    if report.customers_and_market.known_public_customers:
-        st.markdown("**Known public customers**")
-        for customer in report.customers_and_market.known_public_customers:
-            st.write(f"- {customer.name}: {customer.context}")
-
-    if report.customers_and_market.customer_types:
-        st.markdown("**Customer types**")
-        for customer_type in report.customers_and_market.customer_types:
-            st.write(f"- {customer_type}")
-
-    if report.customers_and_market.limitations:
-        st.info(report.customers_and_market.limitations)
-
-    st.subheader("Competitors")
-    for competitor in report.competitors:
-        st.write(f"- **{competitor.name}** — {competitor.reason}")
-
-    if report.recent_developments:
-        st.subheader("Recent developments")
-        for development in report.recent_developments:
-            st.markdown(f"**{development.title}**")
-            st.caption(f"{development.date} · {development.type}")
-            st.write(development.summary)
-            st.caption(development.interview_relevance)
-
-    st.subheader("Interview intelligence")
-    st.markdown("**Talking points**")
-    for point in report.interview_intelligence.talking_points:
-        st.write(f"- **{point.topic}** — {point.how_to_use}")
-
-    st.markdown("**Questions to ask**")
-    for question in report.interview_intelligence.questions_to_ask:
-        st.write(f"- {question.question}")
-
-    if report.interview_intelligence.risks_to_prepare_for:
-        st.markdown("**Risks to prepare for**")
-        for risk in report.interview_intelligence.risks_to_prepare_for:
-            st.write(f"- **{risk.risk}** — {risk.preparation_note}")
-
-    st.subheader("Employee sentiment")
-    st.write(report.employee_sentiment.summary)
-    st.caption(report.employee_sentiment.interview_caution)
-
-    if report.limitations:
-        st.subheader("Limitations")
-        for limitation in report.limitations:
-            st.write(f"- {limitation}")
-
-    st.subheader("Sources")
-    for source in report.sources:
-        st.write(f"- {source.title} — {source.url}")
-
-
-def _render_company_preview_page() -> None:
-    company_key = st.query_params.get(
-        "company_key"
-    )
-
-    if not company_key:
-        st.error(
-            "No company key was provided."
-        )
-        return
-
-    try:
-        company = load_saved_company_research(
-            company_key
-        )
-
-    except CompanyResearchError as error:
-        st.error(str(error))
-        return
-
-    if company is None:
-        st.warning(
-            "The requested company report does not exist."
-        )
-        return
-
-    _render_company_report(company)
-
-
-def _render_companies_page() -> None:
-    st.title("Companies")
-
-    st.caption(
-        "Saved company reports are shown from newest to oldest."
-    )
-
-    try:
-        companies = list_saved_company_research()
-
-    except CompanyResearchError as error:
-        st.error(str(error))
-        return
-
-    if not companies:
-        st.info(
-            "No saved company reports were found."
-        )
-        return
-
-    for index, company in enumerate(companies):
-        left, right = st.columns([5, 1])
-
-        with left:
-            st.markdown(
-                f"**{company.display_name}**"
-            )
-
-            st.caption(
-                f"{company.company_key} · "
-                f"{company.company_research.research_status} · "
-                f"valid until "
-                f"{company.company_research.valid_until.date()}"
-            )
-
-        with right:
-            if st.button(
-                "Open",
-                key=(
-                    "open_company_"
-                    f"{index}_"
-                    f"{company.company_key}"
-                ),
-                width="stretch",
-            ):
-                _navigate(
-                    "company",
-                    company_key=(
-                        company.company_key
-                    ),
-                )
-
-                st.rerun()
-
-        st.divider()
-
 def main() -> None:
     st.markdown(
         GLOBAL_STYLES,
@@ -994,12 +797,6 @@ def main() -> None:
 
     elif page == "applications":
         _render_applications_page()
-
-    elif page == "companies":
-        _render_companies_page()
-
-    elif page == "company":
-        _render_company_preview_page()
 
     else:
         _render_optimize_page()

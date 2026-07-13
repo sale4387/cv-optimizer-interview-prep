@@ -1,4 +1,4 @@
-## TASK-013 — Implement Interview Preparation Generation
+## TASK-015 — Test Complete Workflow, Edge Cases and Failure Handling
 
 ### Status
 
@@ -6,46 +6,188 @@ Backlog
 
 ### Goal
 
-This task completes the 3rd pillar of this tool which is generating potential interview questions and advised replies.
+Verify that the complete application workflow works end-to-end and fails safely across normal, edge-case and failure scenarios.
 
 ### Description
 
-Based on following provided data: User's cv, company profile, job description AI should create a comprahensive resource in form of 10 - 15 potential interveiw questions and 1-3 possible answers, whcih will help user better prepare for interview.
+This task validates the full MVP workflow after the main features have been implemented.
+
+At this point, the application should include:
+
+- CV optimization
+- draft application creation
+- fit assessment
+- gap analysis
+- company research
+- interview preparation
+- inline CV review
+- targeted revision
+- CV acceptance
+- direct PDF download
+- saved application reopening
+
+This task does not add major new product features.
+
+Its purpose is to prove that the full system works as one product and that individual parts do not break each other.
+
+The tests should cover:
+
+- happy-path workflow
+- poor-fit workflow
+- draft and accepted application behavior
+- saved application reopening
+- company research cache behavior
+- interview preparation generation
+- inline review state
+- targeted revision behavior
+- PDF export rules
+- invalid AI output
+- invalid user input
+- Firestore failures
+- AI failures
+- partial-result scenarios
+
+The system should never display or store unvalidated AI output.
+
+When something fails, the user should receive a clear high-level error message, and the application should preserve any previously valid data.
 
 ### Dependencies
 
-Task 012 should be completed
+- TASK-012 must be completed.
+- TASK-013 must be completed.
+- TASK-014 must be completed.
+- TASK-019 must be completed.
+- Existing automated task-level tests must be passing.
+- Test data and at least one realistic job ad must be available.
 
 ### Subtasks
 
-- [ ] Subtask 1
-- [ ] Subtask 2
-- [ ] Subtask 3
+- [ ] Define full workflow test scenarios.
+- [ ] Define realistic test inputs.
+- [ ] Prepare one strong-fit job ad test case.
+- [ ] Prepare one solid-fit or stretch-fit job ad test case.
+- [ ] Prepare one poor-fit job ad test case.
+- [ ] Prepare one company with enough public data.
+- [ ] Prepare one company with limited public data.
+- [ ] Test complete happy path from job ad input to accepted PDF download.
+- [ ] Test poor-fit path from job ad input to useful preparation output.
+- [ ] Test saved application reopening from `My Applications`.
+- [ ] Test saved company report reopening from `Companies`.
+- [ ] Test company research cache hit.
+- [ ] Test company research refresh when report is older than 3 months.
+- [ ] Test interview preparation generation and storage.
+- [ ] Test inline review decisions from TASK-019.
+- [ ] Test targeted revision for one editable CV item.
+- [ ] Test that unrelated CV content does not change during targeted revision.
+- [ ] Test accept CV flow.
+- [ ] Test direct PDF download after acceptance.
+- [ ] Test that draft PDF download remains blocked.
+- [ ] Test invalid company input.
+- [ ] Test missing or too-short job ad input.
+- [ ] Test invalid AI JSON response.
+- [ ] Test AI response with unsupported CV claims.
+- [ ] Test AI response with unrequested revision fields.
+- [ ] Test company research with insufficient public information.
+- [ ] Test interview preparation with generic or duplicated questions.
+- [ ] Test Firestore read failure.
+- [ ] Test Firestore write failure.
+- [ ] Test AI provider failure.
+- [ ] Test partial-result behavior when company research succeeds but interview preparation fails.
+- [ ] Test partial-result behavior when CV optimization succeeds but supporting feature fails.
+- [ ] Add controlled manual UI checklist.
+- [ ] Add or update automated test scripts where practical.
+- [ ] Save final test results log.
+- [ ] Record known limitations and accepted non-blocking issues.
 
 ### Acceptance Criteria
 
-- Report consists 10-15 questions relevant to 3 dimensional input which is cv, company, job add
-- Questions should avoid generic questions: tell me about your self, your 3 top features, where you see yourselves in...
-- Questions should be built around experience from, expectations from job ad, latest trechnologies around job scope
-- Each question should have 2-3 advised replies
-- Questions should be connected with applications via inteview_prep field in firebase
+- [ ] Complete happy-path workflow works without editing code.
+- [ ] User can submit a valid job ad and company input.
+- [ ] System creates a saved draft application.
+- [ ] Fit assessment is displayed.
+- [ ] Gap analysis is displayed.
+- [ ] Company research is generated or reused.
+- [ ] Interview preparation is generated and saved.
+- [ ] Inline CV review works.
+- [ ] Targeted revision works and keeps application in draft status.
+- [ ] Accept CV changes status to `accepted`.
+- [ ] Accepted CV can be downloaded as PDF.
+- [ ] Draft CV cannot be downloaded as final PDF.
+- [ ] Saved applications can be reopened.
+- [ ] Saved company reports can be reopened.
+- [ ] Poor-fit workflow stops CV tailoring.
+- [ ] Poor-fit workflow still shows useful gap and preparation guidance.
+- [ ] Invalid input is rejected before AI calls where possible.
+- [ ] Invalid AI output is rejected before display or storage.
+- [ ] Firestore failures return controlled errors.
+- [ ] AI failures return controlled errors.
+- [ ] Partial supporting-feature failures do not corrupt the main CV result.
+- [ ] Previously valid saved data is preserved after a failed later step.
+- [ ] Logs provide enough information to diagnose failures.
+- [ ] Final test log shows pass/fail result for every critical scenario.
 
 ### Measurements
 
-How will success be measured?
+Success is measured by:
 
-- Each report has 10-15 questions
-- Generic questions such as tell me about your self, your 3 top features, where you see yourselves in... are not displayed
-- Questions are not duplicated
-- Each question has relevance to company, job requirements or cv
+- Full workflow can be demonstrated from start to finish.
+- All critical automated tests pass.
+- Manual UI checklist passes for the main user journey.
+- No unvalidated AI output is displayed.
+- No draft CV can be exported as final PDF.
+- Failed company research or interview preparation does not break CV optimization.
+- Saved records can be reopened after app restart.
+- Error messages are user-safe and understandable.
+- Known remaining issues are documented before refactoring.
 
 ### Test Cases
 
-- [ ] Normal flow
-- [ ] Invalid input
-- [ ] Expected failure
-- [ ] Relevant edge case
+- [ ] Strong-fit application completes full workflow and downloads accepted PDF.
+- [ ] Solid-fit or stretch-fit application completes full workflow with gap guidance.
+- [ ] Poor-fit application stops CV tailoring and displays preparation recommendations.
+- [ ] Existing fresh company research is reused.
+- [ ] Expired company research is refreshed.
+- [ ] Limited company research produces a limited but valid report.
+- [ ] Interview preparation generates 10–15 personalized questions.
+- [ ] Interview preparation rejects duplicated or generic-only questions.
+- [ ] Inline review accepts one AI suggestion and keeps one original value.
+- [ ] Inline review revision changes only the selected editable item.
+- [ ] User accepts CV after review and PDF download becomes available.
+- [ ] Draft PDF export remains blocked.
+- [ ] Saved application opens correctly from `My Applications`.
+- [ ] Saved company report opens correctly from `Companies`.
+- [ ] Invalid company format is rejected.
+- [ ] Empty job title is rejected.
+- [ ] Empty or too-short job ad is rejected.
+- [ ] AI timeout or provider failure returns a controlled error.
+- [ ] AI invalid JSON response returns a controlled error.
+- [ ] AI unsupported CV claim is rejected.
+- [ ] Firestore read failure returns a controlled error.
+- [ ] Firestore write failure returns a controlled error.
+- [ ] Application reload after failure keeps last valid saved state.
+- [ ] Browser/app rerun does not lose critical draft state.
+- [ ] Accepted application remains accepted after reload.
+- [ ] Old saved application record without new supporting fields loads safely or shows a clear migration/fallback state.
+
+### Manual UI Checklist
+
+- [ ] Sidebar navigation is understandable.
+- [ ] CV-first flow from TASK-019 is usable.
+- [ ] Fit assessment is easy to find.
+- [ ] Gap analysis is easy to understand.
+- [ ] Company report is readable and not too long.
+- [ ] Interview preparation is practical and not generic.
+- [ ] Inline review controls are not confusing.
+- [ ] Error messages do not expose raw technical details.
+- [ ] PDF filename is safe and understandable.
+- [ ] Final PDF opens correctly.
+- [ ] Final PDF content matches accepted CV content.
 
 ### Notes
 
-Only include risks, open questions or important implementation constraints.
+- This task is a verification and hardening task, not a feature-expansion task.
+- Small bugs may be fixed during this task if they block workflow completion.
+- Larger design or architecture issues should be recorded for TASK-011.
+- Cosmetic issues should not block completion unless they prevent real use.
+- Any accepted limitation must be written down before deployment preparation.
+- Final output of this task should include a test results log and a short list of remaining known issues.

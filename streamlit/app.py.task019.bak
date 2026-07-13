@@ -42,9 +42,6 @@ from services.revision_service import (
 from ui.cv_preview import (
     render_cv_preview,
 )
-from ui.inline_review import (
-    render_inline_review,
-)
 from ui.fit_gap_preview import (
     render_fit_and_gap,
 )
@@ -523,12 +520,6 @@ def _render_review_controls(
         SavedApplicationResult
     ),
 ) -> None:
-    if application.tailored_cv is None:
-        st.info(
-            "Request changes is available only when the application contains a tailored CV."
-        )
-        return
-
     application_id = (
         application.application_id
     )
@@ -702,12 +693,6 @@ def _render_preview_page() -> None:
         return
 
     render_fit_and_gap(
-        application
-    )
-
-    st.divider()
-
-    render_inline_review(
         application
     )
 

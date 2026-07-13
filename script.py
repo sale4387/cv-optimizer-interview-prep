@@ -1,751 +1,337 @@
 from __future__ import annotations
 
-import json
 import sys
 from copy import deepcopy
-from datetime import (
-    datetime,
-    timezone,
-)
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Callable
-from unittest.mock import patch
 
-from google.api_core.exceptions import (
-    ServiceUnavailable,
-)
-
-import services.revision_service as service
-from ai.response_models import (
-    CVOptimizationResponse,
-)
-from ai.revision_models import (
-    CVRevisionRequest,
-)
-from ai.workflows.cv_revision import (
-    CVRevisionWorkflowError,
-    revise_cv_sections,
-)
-from services.application_service import (
-    SavedApplicationResult,
+from cv_data.models import CVProfile
+from services.inline_review_service import (
+    InlineReviewError,
+    build_inline_review_state,
+    review_state_ready_to_accept,
+    update_review_item_decision,
 )
 
 
-BASE_CV = {
-    "profile_id": "sale",
-    "cv_version": "1.0",
-    "personal_info": {
-        "full_name": (
-            "Aleksandar Markovic"
-        ),
-        "location": (
-            "Gouda, Netherlands"
-        ),
-        "phone": (
-            "+31 00 000 0000"
-        ),
-        "email": (
-            "test@example.com"
-        ),
-        "linkedin": (
-            "https://linkedin.com/in/test"
-        ),
-    },
-    "professional_summary": (
-        "Commercial professional with "
-        "experience in stakeholder "
-        "management and process improvement."
-    ),
-    "core_skills": [
-        "Procurement",
-        "Stakeholder management",
-        "Python",
-    ],
-    "professional_experience": [
-        {
-            "experience_id": (
-                "experience_001"
-            ),
-            "employer": (
-                "Example Company"
-            ),
-            "job_title": (
-                "Commercial Manager"
-            ),
-            "location": (
-                "Netherlands"
-            ),
-            "start_date": "2020",
-            "end_date": "Present",
-            "responsibilities": [
-                (
-                    "Managed commercial "
-                    "stakeholders and internal "
-                    "delivery teams."
-                )
-            ],
-            "achievements": [],
-        }
-    ],
-    "projects": [],
-    "education": [
-        {
-            "education_id": (
-                "education_001"
-            ),
-            "institution": (
-                "Example University"
-            ),
-            "qualification": (
-                "Business Degree"
-            ),
-            "start_date": "2010",
-            "end_date": "2014",
-        }
-    ],
-    "languages": [
-        {
-            "language": "English",
-            "level": "Fluent",
-        }
-    ],
-    "tools_and_technologies": [
-        "Python",
-    ],
-}
-
-
-CURRENT_OPTIMIZATION = {
-    "fit_assessment": {
-        "level": "strong",
-        "explanation": (
-            "The candidate has directly "
-            "relevant commercial and "
-            "stakeholder-management experience "
-            "for the target role."
-        ),
-        "relevant_experience": [
-            (
-                "Managed commercial "
-                "stakeholders and internal "
-                "delivery teams."
-            )
-        ],
-        "missing_requirements": [],
-    },
-    "cv_patch": {
-        "professional_summary": (
-            "Commercial professional with "
-            "experience in stakeholder "
-            "management, procurement and "
-            "structured process improvement "
-            "across operational teams."
-        ),
-        "experience_updates": [
-            {
-                "experience_id": (
-                    "experience_001"
-                ),
-                "suggested_job_title": (
-                    "Commercial Manager"
-                ),
-                "responsibilities": [
-                    (
-                        "Managed commercial "
-                        "stakeholders and internal "
-                        "delivery teams to improve "
-                        "coordination and delivery."
-                    )
-                ],
-            }
-        ],
-        "skills_to_highlight": [
-            "Stakeholder management",
-            "Procurement",
-        ],
-    },
-    "gap_analysis": {
-        "supported_requirements": [
-            (
-                "Stakeholder management "
-                "experience"
-            )
-        ],
-        "reasonably_derived_requirements": [
-            (
-                "Cross-functional "
-                "coordination"
-            )
-        ],
-        "unsupported_requirements": [],
-    },
-    "warnings": [],
-}
-
-
-REVISED_SUMMARY = (
-    "Commercial and AI project "
-    "professional with experience in "
-    "stakeholder management, procurement, "
-    "Python-enabled workflows and practical "
-    "process improvement across teams."
-)
-
-
-def optimization_model(
-    data: dict | None = None,
-) -> CVOptimizationResponse:
-    return (
-        CVOptimizationResponse
-        .model_validate(
-            data
-            or CURRENT_OPTIMIZATION
+def load_base_cv() -> CVProfile:
+    return CVProfile.model_validate_json(
+        Path("cv_data/cv_sale.json").read_text(
+            encoding="utf-8"
         )
     )
 
 
-def application_record(
+def make_application(
     *,
-    status: str = "draft",
-    summary: str | None = None,
-) -> SavedApplicationResult:
-    tailored_cv = deepcopy(
-        BASE_CV
-    )
-
-    tailored_cv[
-        "professional_summary"
-    ] = (
-        summary
-        or CURRENT_OPTIMIZATION[
-            "cv_patch"
-        ][
-            "professional_summary"
-        ]
-    )
-
-    tailored_cv[
-        "professional_experience"
-    ][0][
-        "responsibilities"
-    ] = deepcopy(
-        CURRENT_OPTIMIZATION[
-            "cv_patch"
-        ][
-            "experience_updates"
-        ][0][
-            "responsibilities"
-        ]
-    )
-
-    tailored_cv[
-        "core_skills"
-    ] = [
-        "Stakeholder management",
-        "Procurement",
-        "Python",
-    ]
-
-    now = datetime.now(
-        timezone.utc
-    )
-
-    return (
-        SavedApplicationResult
-        .model_validate(
-            {
-                "application_id": (
-                    "application-001"
-                ),
-                "profile_id": "sale",
-                "company_key": (
-                    "example-company-nl"
-                ),
-                "job_title": (
-                    "Commercial AI Manager"
-                ),
-                "job_ad_hash": "a" * 64,
-                "status": status,
-                "fit_assessment": (
-                    CURRENT_OPTIMIZATION[
-                        "fit_assessment"
-                    ]
-                ),
-                "tailored_cv": (
-                    tailored_cv
-                ),
-                "gap_analysis": (
-                    CURRENT_OPTIMIZATION[
-                        "gap_analysis"
-                    ]
-                ),
-                "interview_prep": None,
-                "base_cv_version": "1.0",
-                "schema_version": "1.0",
-                "prompt_version": (
-                    "task-007-v1"
-                ),
-                "model_version": (
-                    "test-model"
-                ),
-                "created_at": now,
-                "updated_at": now,
-                "accepted_at": (
-                    now
-                    if status == "accepted"
-                    else None
-                ),
-            }
-        )
+    tailored_cv: dict | None,
+):
+    return SimpleNamespace(
+        application_id="app-019-test",
+        profile_id="sale",
+        tailored_cv=tailored_cv,
     )
 
 
-def test_accept_updates_status() -> None:
-    draft = application_record(
-        status="draft"
+def make_tailored_cv() -> dict:
+    base = load_base_cv().model_dump(
+        mode="python"
     )
 
-    accepted = application_record(
-        status="accepted"
+    tailored = deepcopy(base)
+
+    tailored["professional_summary"] = (
+        tailored["professional_summary"]
+        + " Tailored for this specific job application."
     )
 
-    updates: list[dict] = []
-
-    with (
-        patch.object(
-            service,
-            "load_saved_application",
-            side_effect=[
-                draft,
-                accepted,
-            ],
-        ),
-        patch.object(
-            service,
-            "update_application",
-            side_effect=lambda application_id, payload: updates.append(
-                payload
-            ),
-        ),
-    ):
-        result = (
-            service
-            .accept_saved_application(
-                "application-001"
-            )
+    if tailored.get("core_skills"):
+        tailored["core_skills"] = (
+            list(tailored["core_skills"])
+            + ["Job-specific stakeholder alignment"]
         )
 
-    assert result.status == "accepted"
-    assert updates == [
-        {
-            "status": "accepted",
-        }
-    ]
-
-
-def test_comments_can_be_added_edited_removed() -> None:
-    added = (
-        service
-        .normalize_revision_comments(
-            {
-                "professional_summary": (
-                    "Make it more concise."
-                ),
-                "skills_to_highlight": (
-                    "Prioritize Python."
-                ),
-            }
+    if tailored.get("tools_and_technologies"):
+        tailored["tools_and_technologies"] = (
+            list(tailored["tools_and_technologies"])
+            + ["Applicant tracking systems"]
         )
+
+    experiences = tailored.get(
+        "professional_experience",
+        [],
     )
 
-    assert len(added) == 2
-
-    edited_and_removed = (
-        service
-        .normalize_revision_comments(
-            {
-                "professional_summary": (
-                    "Focus on commercial AI work."
-                ),
-                "skills_to_highlight": (
-                    "   "
-                ),
-            }
+    if experiences:
+        responsibilities = experiences[0].setdefault(
+            "responsibilities",
+            [],
         )
+
+        responsibilities.append(
+            "Tailored responsibility for the tested job application."
+        )
+
+    return tailored
+
+
+def test_inline_review_state_created() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
     )
 
-    assert edited_and_removed == {
-        "professional_summary": (
-            "Focus on commercial AI work."
-        )
+    state = build_inline_review_state(
+        application
+    )
+
+    assert state.application_id == "app-019-test"
+    assert state.items
+
+
+def test_summary_review_item_exists() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
+    )
+
+    state = build_inline_review_state(
+        application
+    )
+
+    item_types = {
+        item.item_type
+        for item in state.items
     }
 
+    assert "professional_summary" in item_types
 
-def test_revision_updates_selected_section_only() -> None:
-    draft = application_record(
-        status="draft"
+
+def test_core_skills_or_tools_review_item_exists() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
     )
 
-    revised = application_record(
-        status="draft",
-        summary=REVISED_SUMMARY,
+    state = build_inline_review_state(
+        application
     )
 
-    revised_optimization_data = (
-        deepcopy(
-            CURRENT_OPTIMIZATION
-        )
-    )
-
-    revised_optimization_data[
-        "cv_patch"
-    ][
-        "professional_summary"
-    ] = REVISED_SUMMARY
-
-    revised_optimization = (
-        optimization_model(
-            revised_optimization_data
-        )
-    )
-
-    update_payloads: list[
-        dict
-    ] = []
-
-    with (
-        patch.object(
-            service,
-            "load_saved_application",
-            side_effect=[
-                draft,
-                revised,
-            ],
-        ),
-        patch.object(
-            service,
-            "load_cv_profile",
-            return_value=(
-                deepcopy(BASE_CV)
-            ),
-        ),
-        patch.object(
-            service,
-            "_build_existing_optimization",
-            return_value=(
-                optimization_model()
-            ),
-        ),
-        patch.object(
-            service,
-            "revise_cv_sections",
-            return_value=(
-                revised_optimization
-            ),
-        ),
-        patch.object(
-            service,
-            "update_application",
-            side_effect=lambda application_id, payload: update_payloads.append(
-                payload
-            ),
-        ),
-    ):
-        result = (
-            service
-            .revise_saved_application(
-                application_id=(
-                    "application-001"
-                ),
-                comments={
-                    "professional_summary": (
-                        "Focus on AI delivery."
-                    )
-                },
-            )
-        )
-
-    assert result.status == "draft"
-    assert (
-        result
-        .tailored_cv
-        .professional_summary
-        == REVISED_SUMMARY
-    )
-
-    payload = update_payloads[0]
-
-    assert payload["status"] == "draft"
-
-    assert (
-        payload["tailored_cv"][
-            "professional_experience"
-        ][0][
-            "responsibilities"
-        ]
-        == CURRENT_OPTIMIZATION[
-            "cv_patch"
-        ][
-            "experience_updates"
-        ][0][
-            "responsibilities"
-        ]
-    )
-
-
-def test_unrequested_section_is_rejected() -> None:
-    request = CVRevisionRequest(
-        application_id=(
-            "application-001"
-        ),
-        sections=[
-            {
-                "section": (
-                    "professional_summary"
-                ),
-                "comment": (
-                    "Make it more concise."
-                ),
-            }
-        ],
-    )
-
-    response = {
-        "professional_summary": (
-            REVISED_SUMMARY
-        ),
-        "skills_to_highlight": [
-            "Python"
-        ],
+    item_types = {
+        item.item_type
+        for item in state.items
     }
 
-    def fake_request(
-        prompt: str,
-        *,
-        system_instruction: str,
-    ) -> str:
-        return json.dumps(response)
-
-    try:
-        revise_cv_sections(
-            original_cv=BASE_CV,
-            current_cv=BASE_CV,
-            current_optimization=(
-                optimization_model()
-            ),
-            revision_request=request,
-            request_function=(
-                fake_request
-            ),
-        )
-
-    except CVRevisionWorkflowError:
-        return
-
-    raise AssertionError(
-        "Unrequested revision section "
-        "was accepted."
+    assert (
+        "core_skills" in item_types
+        or "tools_and_technologies" in item_types
     )
 
 
-def test_invalid_revision_is_rejected() -> None:
-    request = CVRevisionRequest(
-        application_id=(
-            "application-001"
-        ),
-        sections=[
-            {
-                "section": (
-                    "professional_summary"
-                ),
-                "comment": (
-                    "Make it more concise."
-                ),
-            }
-        ],
+def test_responsibility_review_item_exists() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
     )
 
-    def fake_request(
-        prompt: str,
-        *,
-        system_instruction: str,
-    ) -> str:
-        return json.dumps(
-            {
-                "professional_summary": (
-                    "Too short"
-                )
-            }
-        )
-
-    try:
-        revise_cv_sections(
-            original_cv=BASE_CV,
-            current_cv=BASE_CV,
-            current_optimization=(
-                optimization_model()
-            ),
-            revision_request=request,
-            request_function=(
-                fake_request
-            ),
-        )
-
-    except CVRevisionWorkflowError:
-        return
-
-    raise AssertionError(
-        "Invalid revision response "
-        "was accepted."
+    state = build_inline_review_state(
+        application
     )
 
+    item_types = {
+        item.item_type
+        for item in state.items
+    }
 
-def test_firestore_save_failure_is_controlled() -> None:
-    draft = application_record(
-        status="draft"
-    )
-
-    with (
-        patch.object(
-            service,
-            "load_saved_application",
-            return_value=draft,
-        ),
-        patch.object(
-            service,
-            "load_cv_profile",
-            return_value=(
-                deepcopy(BASE_CV)
-            ),
-        ),
-        patch.object(
-            service,
-            "_build_existing_optimization",
-            return_value=(
-                optimization_model()
-            ),
-        ),
-        patch.object(
-            service,
-            "revise_cv_sections",
-            return_value=(
-                optimization_model()
-            ),
-        ),
-        patch.object(
-            service,
-            "update_application",
-            side_effect=(
-                ServiceUnavailable(
-                    "Forced Firestore failure"
-                )
-            ),
-        ),
-    ):
-        try:
-            (
-                service
-                .revise_saved_application(
-                    application_id=(
-                        "application-001"
-                    ),
-                    comments={
-                        "professional_summary": (
-                            "Improve the summary."
-                        )
-                    },
-                )
-            )
-
-        except (
-            service
-            .ApplicationRevisionError
-        ):
-            return
-
-    raise AssertionError(
-        "Firestore revision save "
-        "failure was not controlled."
-    )
+    assert "responsibility_bullet" in item_types
 
 
-def test_draft_pdf_export_is_blocked() -> None:
-    draft = application_record(
-        status="draft"
+def test_missing_tailored_cv_rejected() -> None:
+    application = make_application(
+        tailored_cv=None
     )
 
     try:
-        (
-            service
-            .generate_accepted_application_pdf(
-                draft
-            )
+        build_inline_review_state(
+            application
         )
 
-    except service.DraftPDFExportError:
+    except InlineReviewError:
         return
 
     raise AssertionError(
-        "Draft PDF export was not blocked."
+        "Application without tailored CV was accepted for inline review."
     )
 
 
-def test_accepted_pdf_export_is_allowed() -> None:
-    accepted = application_record(
-        status="accepted"
+def test_accept_suggestion_decision_updates_item() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
     )
 
-    with patch.object(
-        service,
-        "generate_cv_pdf",
-        return_value=b"%PDF-test",
-    ):
-        result = (
-            service
-            .generate_accepted_application_pdf(
-                accepted
-            )
+    state = build_inline_review_state(
+        application
+    )
+
+    first_item = state.items[0]
+
+    updated = update_review_item_decision(
+        state,
+        item_id=first_item.item_id,
+        decision="accepted_suggestion",
+    )
+
+    updated_item = updated.items[0]
+
+    assert updated_item.decision == "accepted_suggestion"
+    assert updated_item.current_value == updated_item.suggested_value
+
+
+def test_keep_original_decision_updates_item() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
+    )
+
+    state = build_inline_review_state(
+        application
+    )
+
+    first_item = state.items[0]
+
+    updated = update_review_item_decision(
+        state,
+        item_id=first_item.item_id,
+        decision="kept_original",
+    )
+
+    updated_item = updated.items[0]
+
+    assert updated_item.decision == "kept_original"
+    assert updated_item.current_value == updated_item.original_value
+
+
+def test_revision_request_sets_pending_status() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
+    )
+
+    state = build_inline_review_state(
+        application
+    )
+
+    first_item = state.items[0]
+
+    updated = update_review_item_decision(
+        state,
+        item_id=first_item.item_id,
+        decision="revision_requested",
+        user_comment="Make this more precise.",
+    )
+
+    updated_item = updated.items[0]
+
+    assert updated_item.decision == "revision_requested"
+    assert updated_item.revision_status == "pending"
+    assert updated_item.user_comment == "Make this more precise."
+
+
+def test_ready_to_accept_false_with_pending_items() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
+    )
+
+    state = build_inline_review_state(
+        application
+    )
+
+    assert review_state_ready_to_accept(
+        state
+    ) is False
+
+
+def test_ready_to_accept_true_when_all_resolved() -> None:
+    application = make_application(
+        tailored_cv=make_tailored_cv()
+    )
+
+    state = build_inline_review_state(
+        application
+    )
+
+    for item in state.items:
+        state = update_review_item_decision(
+            state,
+            item_id=item.item_id,
+            decision="accepted_suggestion",
         )
 
-    assert result == b"%PDF-test"
+    assert review_state_ready_to_accept(
+        state
+    ) is True
+
+
+def test_streamlit_app_patched() -> None:
+    app_text = Path("streamlit/app.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "render_inline_review" in app_text
+    assert "Request changes is available only" in app_text
+
+
+def test_inline_review_ui_imports() -> None:
+    from ui.inline_review import render_inline_review
+
+    assert callable(render_inline_review)
 
 
 TESTS: list[
     tuple[str, Callable[[], None]]
 ] = [
     (
-        "Accept CV updates status",
-        test_accept_updates_status,
+        "Inline review state created",
+        test_inline_review_state_created,
     ),
     (
-        "Revision comments can be "
-        "added, edited and removed",
-        test_comments_can_be_added_edited_removed,
+        "Summary review item exists",
+        test_summary_review_item_exists,
     ),
     (
-        "Revision updates selected "
-        "section and remains draft",
-        test_revision_updates_selected_section_only,
+        "Core skills or tools review item exists",
+        test_core_skills_or_tools_review_item_exists,
     ),
     (
-        "Unrequested AI section rejected",
-        test_unrequested_section_is_rejected,
+        "Responsibility review item exists",
+        test_responsibility_review_item_exists,
     ),
     (
-        "Invalid revision response rejected",
-        test_invalid_revision_is_rejected,
+        "Missing tailored CV rejected",
+        test_missing_tailored_cv_rejected,
     ),
     (
-        "Firestore revision save "
-        "failure controlled",
-        test_firestore_save_failure_is_controlled,
+        "Accept suggestion decision updates item",
+        test_accept_suggestion_decision_updates_item,
     ),
     (
-        "Draft PDF export blocked",
-        test_draft_pdf_export_is_blocked,
+        "Keep original decision updates item",
+        test_keep_original_decision_updates_item,
     ),
     (
-        "Accepted PDF export allowed",
-        test_accepted_pdf_export_is_allowed,
+        "Revision request sets pending status",
+        test_revision_request_sets_pending_status,
+    ),
+    (
+        "Ready to accept false with pending items",
+        test_ready_to_accept_false_with_pending_items,
+    ),
+    (
+        "Ready to accept true when all resolved",
+        test_ready_to_accept_true_when_all_resolved,
+    ),
+    (
+        "Streamlit app patched",
+        test_streamlit_app_patched,
+    ),
+    (
+        "Inline review UI imports",
+        test_inline_review_ui_imports,
     ),
 ]
 
@@ -766,28 +352,19 @@ def main() -> int:
 
             print(
                 f"[FAIL] {test_name} — "
-                f"{type(error).__name__}: "
-                f"{error}"
+                f"{type(error).__name__}: {error}"
             )
 
         else:
             passed += 1
-
-            print(
-                f"[PASS] {test_name}"
-            )
+            print(f"[PASS] {test_name}")
 
     print()
     print(
-        f"Result: {passed} passed, "
-        f"{failed} failed"
+        f"Result: {passed} passed, {failed} failed"
     )
 
-    return (
-        0
-        if failed == 0
-        else 1
-    )
+    return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":

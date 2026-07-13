@@ -1,4 +1,4 @@
-## TASK-007 — Implement Role Fit and CV Optimization Workflow
+## TASK-010 — Implement Targeted Revision Workflow and Review UI
 
 ### Status
 
@@ -6,57 +6,75 @@ Backlog
 
 ### Goal
 
-This task implements the first core pillar of the project by building the role-fit and CV optimization logic.
+This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
 
 ### Description
 
-In this task, we will build the logic to estimate role fit and produce a polished CV in JSON format by using the models, cleaner and validation rules from TASK-006.
+In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
+
+The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
 
 ### Dependencies
 
-TASK-006 must be completed first.
+TASK-009 must be completed first.
 
 ### Subtasks
 
-- [ ] Define clear prompt instructions for role-fit assessment.
-- [ ] Define criteria for the four fit levels: `strong`, `solid`, `stretch` and `poor`.
-- [ ] Create the main CV optimization workflow.
-- [ ] Load the stored CV profile and job input.
-- [ ] Send the required context to Gemini.
-- [ ] Pass the AI response through the cleaner.
-- [ ] Validate the cleaned response using TASK-006 rules.
-- [ ] Stop CV tailoring when the fit level is `poor`.
-- [ ] Return a structured poor-fit result with missing requirements and next-step advice.
-- [ ] Return a validated CV optimization JSON result when the fit is acceptable.
-- [ ] Log workflow start, completion, poor-fit stop and failures.
+- [ ] Add separate revision instructions to `ai/prompts.py`.
+- [ ] Display `Request changes` and `Accept CV` buttons on the preview page.
+- [ ] Allow comments only on sections that may be revised.
+- [ ] Allow each comment to be edited or removed.
+- [ ] Add a button to cancel the revision request.
+- [ ] Add a `Make changes` button.
+- [ ] Build the targeted revision AI call.
+- [ ] Send the existing CV, selected sections and user comments to Gemini.
+- [ ] Request only the selected sections in the AI response.
+- [ ] Pass the response through the cleaner and TASK-009 validation.
+- [ ] Merge validated sections with the current CV.
+- [ ] Save the revised result as the latest draft version.
+- [ ] Keep the CV in `draft` status after revisions.
+- [ ] Change the status to `accepted` only after the user clicks `Accept CV`.
+- [ ] Enable browser PDF export only for an accepted CV.
+- [ ] Log revision requests, completions and failures.
 
 ### Acceptance Criteria
 
-- [ ] Criteria for grading whether the candidate is a good fit are clearly defined.
-- [ ] Four role-fit levels are defined: `strong`, `solid`, `stretch` and `poor`.
-- [ ] The workflow stops CV tailoring when the fit is `poor`.
-- [ ] A poor-fit result returns a clear explanation, missing requirements and advice on next actions.
-- [ ] If the fit is acceptable, the workflow produces validated JSON that can later be used to render the CV.
-- [ ] AI output passes through the cleaner and validation logic from TASK-006.
-- [ ] Invalid AI output is rejected and handled safely.
-- [ ] Workflow results and failures are logged.
+- [ ] The initial CV result is available with status `draft`.
+- [ ] The preview displays `Request changes` and `Accept CV`.
+- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
+- [ ] Comments can be edited and removed.
+- [ ] The user can cancel the revision process.
+- [ ] Clicking `Make changes` starts the targeted revision workflow.
+- [ ] AI returns only the selected sections.
+- [ ] Revised sections are cleaned, validated and merged.
+- [ ] Sections that were not selected remain unchanged.
+- [ ] A revised CV is saved as the latest draft version.
+- [ ] Clicking `Accept CV` changes the status to `accepted`.
+- [ ] PDF export is available only after acceptance.
 
 ### Measurements
 
-- The workflow stops CV tailoring when the fit is `poor`.
-- A poor-fit result returns structured reasons and next-step advice.
-- The workflow produces a polished CV in validated JSON format when the fit is acceptable.
-- Invalid AI output does not reach the final workflow result.
-- Workflow completion and failure events are logged.
+- Review and acceptance buttons are displayed and work.
+- Only editable sections can receive revision comments.
+- Comments can be added, edited and removed.
+- A successful revision updates only the selected sections.
+- Revised results remain in draft status.
+- Acceptance updates the Firestore status to `accepted`.
+- Accepted CVs can be saved through browser Print / Save as PDF.
 
 ### Test Cases
 
-- [ ] Normal flow — acceptable fit produces a polished CV in validated JSON format.
-- [ ] Normal flow — poor fit produces a structured warning and stops CV tailoring.
-- [ ] Validation failure — invalid AI output is rejected and logged.
-- [ ] Manual quality review — review whether the assigned fit level is reasonable for the provided CV and job ad.
+- [ ] Normal flow — the user accepts the CV and the database status changes to `accepted`.
+- [ ] Normal flow — the user adds, edits and removes comments on editable sections.
+- [ ] Normal flow — the user requests changes and receives an updated draft CV.
+- [ ] Normal flow — the user cancels the revision process without changing the CV.
+- [ ] Expected failure — AI returns an unrequested section.
+- [ ] Expected failure — revision response fails validation.
+- [ ] Expected failure — Firestore cannot save the revised draft.
+- [ ] Expected failure — PDF export is attempted while the CV is still in draft status.
 
 ### Notes
 
-- Displaying results in the frontend belongs to a later task.
-- Fit quality must be reviewed manually because a structurally valid AI response may still contain a poor assessment.
+- A revision does not automatically accept the CV.
+- The user may repeat the review and revision process before acceptance.
+- Full revision history and side-by-side comparison are outside the MVP.

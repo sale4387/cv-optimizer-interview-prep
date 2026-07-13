@@ -38,287 +38,10 @@ Questions to answer:
 - Which tasks are required for the MVP?
 - Which tasks are optional or future improvements?
 
-## TASK-007 — Implement Role Fit and CV Optimization Workflow
-
-### Status
-
-Backlog
-
-### Goal
-
-This task implements the first core pillar of the project by building the role-fit and CV optimization logic.
-
-### Description
-
-In this task, we will build the logic to estimate role fit and produce a polished CV in JSON format by using the models, cleaner and validation rules from TASK-006.
-
-### Dependencies
-
-TASK-006 must be completed first.
-
-### Subtasks
-
-- [ ] Define clear prompt instructions for role-fit assessment.
-- [ ] Define criteria for the four fit levels: `strong`, `solid`, `stretch` and `poor`.
-- [ ] Create the main CV optimization workflow.
-- [ ] Load the stored CV profile and job input.
-- [ ] Send the required context to Gemini.
-- [ ] Pass the AI response through the cleaner.
-- [ ] Validate the cleaned response using TASK-006 rules.
-- [ ] Stop CV tailoring when the fit level is `poor`.
-- [ ] Return a structured poor-fit result with missing requirements and next-step advice.
-- [ ] Return a validated CV optimization JSON result when the fit is acceptable.
-- [ ] Log workflow start, completion, poor-fit stop and failures.
-
-### Acceptance Criteria
-
-- [ ] Criteria for grading whether the candidate is a good fit are clearly defined.
-- [ ] Four role-fit levels are defined: `strong`, `solid`, `stretch` and `poor`.
-- [ ] The workflow stops CV tailoring when the fit is `poor`.
-- [ ] A poor-fit result returns a clear explanation, missing requirements and advice on next actions.
-- [ ] If the fit is acceptable, the workflow produces validated JSON that can later be used to render the CV.
-- [ ] AI output passes through the cleaner and validation logic from TASK-006.
-- [ ] Invalid AI output is rejected and handled safely.
-- [ ] Workflow results and failures are logged.
-
-### Measurements
-
-- The workflow stops CV tailoring when the fit is `poor`.
-- A poor-fit result returns structured reasons and next-step advice.
-- The workflow produces a polished CV in validated JSON format when the fit is acceptable.
-- Invalid AI output does not reach the final workflow result.
-- Workflow completion and failure events are logged.
-
-### Test Cases
-
-- [ ] Normal flow — acceptable fit produces a polished CV in validated JSON format.
-- [ ] Normal flow — poor fit produces a structured warning and stops CV tailoring.
-- [ ] Validation failure — invalid AI output is rejected and logged.
-- [ ] Manual quality review — review whether the assigned fit level is reasonable for the provided CV and job ad.
-
-### Notes
-
-- Displaying results in the frontend belongs to a later task.
-- Fit quality must be reviewed manually because a structurally valid AI response may still contain a poor assessment.
-
-## TASK-008 — Build CV Results UI, Preview and Browser PDF Export
-
-### Status
-
-Backlog
-
-### Goal
-
-This task completes the CV optimization flow by delivering the final result to the user.
-
-### Description
-
-In this task, we will use the workflow and results from TASK-006 and TASK-007 to build a new web page based on the validated JSON produced by AI.
-
-### Dependencies
-
-TASK-007 must be completed first.
-
-### Subtasks
-
-- [ ] Save the validated application result to Firestore before displaying it to the user with status draft.
-- [ ] Create the CV results page.
-- [ ] Load the saved application using its `application_id`.
-- [ ] Render the CV from the stored JSON.
-- [ ] Add a success modal with the message `Your CV is ready`.
-- [ ] Add a `Check it now` button that opens the preview in the same tab.
-- [ ] Add a `My Applications` page or menu option.
-- [ ] Sort saved applications from newest to oldest.
-- [ ] Allow the user to reopen a saved application.
-- [ ] Add print-friendly styling.
-- [ ] Support browser Print / Save as PDF.
-- [ ] Add handling for missing, invalid or unavailable application records.
-
-### Acceptance Criteria
-
-- [ ] Before displaying the result to the user, the appropriate record is saved to Firestore with status draft.
-- [ ] When the CV is prepared, the user sees a modal with an appropriate success message.
-- [ ] Clicking `Check it now` opens the CV preview in the same tab.
-- [ ] The preview loads the correct saved application.
-- [ ] The user can access previous applications through `My Applications`.
-- [ ] The newest application is displayed first.
-- [ ] The user can save the CV through browser Print / Save as PDF.
-- [ ] The PDF is readable and targets a maximum length of two pages.
-
-### Measurements
-
-- The Firestore record can be verified.
-- The success modal appears.
-- The `Check it now` button opens the correct preview.
-- The user can reopen the application through `My Applications`.
-- Saved applications are ordered from newest to oldest.
-- The browser PDF is readable.
-- The target PDF length is a maximum of two pages.
-
-### Test Cases
-
-- [ ] Normal flow — the user clicks `Check it now`, opens the preview and saves the CV using browser Print / Save as PDF.
-- [ ] Normal flow — the user closes the modal and later opens the newest result through `My Applications`.
-- [ ] Expected failure — the requested `application_id` does not exist.
-- [ ] Expected failure — the stored application record contains invalid data.
-- [ ] Expected failure — Firestore cannot load the application record.
-- [ ] Manual layout test — the PDF preview exceeds two pages or is not readable.
-
 ### Notes
 
 - `My Applications` is a simple saved-results view, not a full history dashboard.
 - Final PDF styling may be improved later if the document is already readable and usable.
-
-## TASK-009 — Define Section Revision Models and Validation Rules
-
-### Status
-
-Backlog
-
-### Goal
-
-This task will define the models and validation rules required to revise only the CV sections selected by the user.
-
-### Description
-
-In this task, we will define the request and response formats for section revisions.
-
-The revision response will contain only the selected sections. Each revised section will be validated separately, merged with the existing CV, and the complete merged result will then pass the full validation from TASK-006.
-
-### Dependencies
-
-TASK-008 must be completed first.
-
-### Subtasks
-
-- [ ] Define the revision request model.
-- [ ] Define how selected sections and user comments are represented.
-- [ ] Define the revision response model.
-- [ ] Allow the response to contain only requested sections.
-- [ ] Create section-specific validation rules.
-- [ ] Reject sections that were not requested.
-- [ ] Reject unexpected keys.
-- [ ] Validate each revised section before merging.
-- [ ] Merge validated revisions with the existing CV.
-- [ ] Run complete CV validation after the merge.
-- [ ] Return all revision validation failure reasons.
-- [ ] Log revision validation and merge failures.
-
-### Acceptance Criteria
-
-- [ ] Revision request and response JSON formats are defined.
-- [ ] Each selected section can contain its own user comment.
-- [ ] AI response may contain only the requested sections.
-- [ ] Additional or unrequested sections are rejected.
-- [ ] Each revised section follows its section-specific validation rules.
-- [ ] Valid revised sections replace the existing sections.
-- [ ] Sections not selected for revision remain unchanged.
-- [ ] The complete merged result passes the full TASK-006 validation.
-- [ ] Validation failures return and log all detected reasons.
-
-### Measurements
-
-- Only selected sections can be revised.
-- Unrequested sections are rejected.
-- Invalid revised sections fail validation.
-- Unchanged sections remain identical.
-- The merged CV passes complete validation.
-- All validation errors are logged.
-
-### Test Cases
-
-- [ ] Normal flow — selected sections are validated, merged and pass complete validation.
-- [ ] Missing section — the response does not contain one of the requested sections.
-- [ ] Additional section — the response contains a section that was not requested.
-- [ ] Wrong type — a revised section contains an invalid data type.
-- [ ] Wrong size — revised content does not meet its length rules.
-- [ ] Merge failure — the merged result fails complete CV validation.
-
-### Notes
-
-- Revision validation is separate from complete CV validation.
-- The cleaner may remove wrappers but must not modify revision content.
-
-## TASK-010 — Implement Targeted Revision Workflow and Review UI
-
-### Status
-
-Backlog
-
-### Goal
-
-This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
-
-### Description
-
-In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
-
-The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
-
-### Dependencies
-
-TASK-009 must be completed first.
-
-### Subtasks
-
-- [ ] Add separate revision instructions to `ai/prompts.py`.
-- [ ] Display `Request changes` and `Accept CV` buttons on the preview page.
-- [ ] Allow comments only on sections that may be revised.
-- [ ] Allow each comment to be edited or removed.
-- [ ] Add a button to cancel the revision request.
-- [ ] Add a `Make changes` button.
-- [ ] Build the targeted revision AI call.
-- [ ] Send the existing CV, selected sections and user comments to Gemini.
-- [ ] Request only the selected sections in the AI response.
-- [ ] Pass the response through the cleaner and TASK-009 validation.
-- [ ] Merge validated sections with the current CV.
-- [ ] Save the revised result as the latest draft version.
-- [ ] Keep the CV in `draft` status after revisions.
-- [ ] Change the status to `accepted` only after the user clicks `Accept CV`.
-- [ ] Enable browser PDF export only for an accepted CV.
-- [ ] Log revision requests, completions and failures.
-
-### Acceptance Criteria
-
-- [ ] The initial CV result is available with status `draft`.
-- [ ] The preview displays `Request changes` and `Accept CV`.
-- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
-- [ ] Comments can be edited and removed.
-- [ ] The user can cancel the revision process.
-- [ ] Clicking `Make changes` starts the targeted revision workflow.
-- [ ] AI returns only the selected sections.
-- [ ] Revised sections are cleaned, validated and merged.
-- [ ] Sections that were not selected remain unchanged.
-- [ ] A revised CV is saved as the latest draft version.
-- [ ] Clicking `Accept CV` changes the status to `accepted`.
-- [ ] PDF export is available only after acceptance.
-
-### Measurements
-
-- Review and acceptance buttons are displayed and work.
-- Only editable sections can receive revision comments.
-- Comments can be added, edited and removed.
-- A successful revision updates only the selected sections.
-- Revised results remain in draft status.
-- Acceptance updates the Firestore status to `accepted`.
-- Accepted CVs can be saved through browser Print / Save as PDF.
-
-### Test Cases
-
-- [ ] Normal flow — the user accepts the CV and the database status changes to `accepted`.
-- [ ] Normal flow — the user adds, edits and removes comments on editable sections.
-- [ ] Normal flow — the user requests changes and receives an updated draft CV.
-- [ ] Normal flow — the user cancels the revision process without changing the CV.
-- [ ] Expected failure — AI returns an unrequested section.
-- [ ] Expected failure — revision response fails validation.
-- [ ] Expected failure — Firestore cannot save the revised draft.
-- [ ] Expected failure — PDF export is attempted while the CV is still in draft status.
-
-### Notes
-
-- A revision does not automatically accept the CV.
-- The user may repeat the review and revision process before acceptance.
-- Full revision history and side-by-side comparison are outside the MVP.
 
 ## TASK-011 — Perform Mid-Project Refactoring and Architecture Review
 
@@ -681,6 +404,87 @@ Questions to answer:
 - What is actively being built?
 - Who or what is blocking progress?
 - What still needs to be tested?
+
+## TASK-010 — Implement Targeted Revision Workflow and Review UI
+
+### Status
+
+in Progress
+
+### Goal
+
+This task will allow the user to review the generated CV, request changes to selected sections, or accept the CV.
+
+### Description
+
+In this task, a second AI workflow will be developed using separate revision instructions and the user’s comments.
+
+The AI will return only the selected sections. After cleaning and validation, the revised sections will replace the existing sections and the updated CV will remain in draft status until the user accepts it.
+
+### Dependencies
+
+TASK-009 must be completed first.
+
+### Subtasks
+
+- [ ] Add separate revision instructions to `ai/prompts.py`.
+- [ ] Display `Request changes` and `Accept CV` buttons on the preview page.
+- [ ] Allow comments only on sections that may be revised.
+- [ ] Allow each comment to be edited or removed.
+- [ ] Add a button to cancel the revision request.
+- [ ] Add a `Make changes` button.
+- [ ] Build the targeted revision AI call.
+- [ ] Send the existing CV, selected sections and user comments to Gemini.
+- [ ] Request only the selected sections in the AI response.
+- [ ] Pass the response through the cleaner and TASK-009 validation.
+- [ ] Merge validated sections with the current CV.
+- [ ] Save the revised result as the latest draft version.
+- [ ] Keep the CV in `draft` status after revisions.
+- [ ] Change the status to `accepted` only after the user clicks `Accept CV`.
+- [ ] Enable browser PDF export only for an accepted CV.
+- [ ] Log revision requests, completions and failures.
+
+### Acceptance Criteria
+
+- [ ] The initial CV result is available with status `draft`.
+- [ ] The preview displays `Request changes` and `Accept CV`.
+- [ ] Clicking `Request changes` allows the user to comment only on editable sections.
+- [ ] Comments can be edited and removed.
+- [ ] The user can cancel the revision process.
+- [ ] Clicking `Make changes` starts the targeted revision workflow.
+- [ ] AI returns only the selected sections.
+- [ ] Revised sections are cleaned, validated and merged.
+- [ ] Sections that were not selected remain unchanged.
+- [ ] A revised CV is saved as the latest draft version.
+- [ ] Clicking `Accept CV` changes the status to `accepted`.
+- [ ] PDF export is available only after acceptance.
+
+### Measurements
+
+- Review and acceptance buttons are displayed and work.
+- Only editable sections can receive revision comments.
+- Comments can be added, edited and removed.
+- A successful revision updates only the selected sections.
+- Revised results remain in draft status.
+- Acceptance updates the Firestore status to `accepted`.
+- Accepted CVs can be saved through browser Print / Save as PDF.
+
+### Test Cases
+
+- [ ] Normal flow — the user accepts the CV and the database status changes to `accepted`.
+- [ ] Normal flow — the user adds, edits and removes comments on editable sections.
+- [ ] Normal flow — the user requests changes and receives an updated draft CV.
+- [ ] Normal flow — the user cancels the revision process without changing the CV.
+- [ ] Expected failure — AI returns an unrequested section.
+- [ ] Expected failure — revision response fails validation.
+- [ ] Expected failure — Firestore cannot save the revised draft.
+- [ ] Expected failure — PDF export is attempted while the CV is still in draft status.
+
+### Notes
+
+- A revision does not automatically accept the CV.
+- The user may repeat the review and revision process before acceptance.
+- Full revision history and side-by-side comparison are outside the MVP.
 
 ---
 
@@ -1405,6 +1209,227 @@ Each unsupported requirement must contain:
 - The cleaner may remove wrappers and surrounding text, but it must not modify the JSON content.
 - Protected CV-field validation will compare the response with the original structured CV.
 - Company research and interview preparation models will be added in later tasks.
+
+## TASK-007 — Implement Role Fit and CV Optimization Workflow
+
+### Status
+
+Done
+
+### Goal
+
+This task implements the first core pillar of the project by building the role-fit and CV optimization logic.
+
+### Description
+
+In this task, we will build the logic to estimate role fit and produce a polished CV in JSON format by using the models, cleaner and validation rules from TASK-006.
+
+### Dependencies
+
+TASK-006 must be completed first.
+
+### Subtasks
+
+- [x] Define clear prompt instructions for role-fit assessment.
+- [x] Define criteria for the four fit levels: `strong`, `solid`, `stretch` and `poor`.
+- [x] Create the main CV optimization workflow.
+- [x] Load the stored CV profile and job input.
+- [x] Send the required context to Gemini.
+- [x] Pass the AI response through the cleaner.
+- [x] Validate the cleaned response using TASK-006 rules.
+- [x] Stop CV tailoring when the fit level is `poor`.
+- [x] Return a structured poor-fit result with missing requirements and next-step advice.
+- [x] Return a validated CV optimization JSON result when the fit is acceptable.
+- [x] Log workflow start, completion, poor-fit stop and failures.
+
+### Acceptance Criteria
+
+- [ ] Criteria for grading whether the candidate is a good fit are clearly defined.
+- [ ] Four role-fit levels are defined: `strong`, `solid`, `stretch` and `poor`.
+- [ ] The workflow stops CV tailoring when the fit is `poor`.
+- [ ] A poor-fit result returns a clear explanation, missing requirements and advice on next actions.
+- [ ] If the fit is acceptable, the workflow produces validated JSON that can later be used to render the CV.
+- [ ] AI output passes through the cleaner and validation logic from TASK-006.
+- [ ] Invalid AI output is rejected and handled safely.
+- [ ] Workflow results and failures are logged.
+
+### Measurements
+
+- The workflow stops CV tailoring when the fit is `poor`.
+- A poor-fit result returns structured reasons and next-step advice.
+- The workflow produces a polished CV in validated JSON format when the fit is acceptable.
+- Invalid AI output does not reach the final workflow result.
+- Workflow completion and failure events are logged.
+
+### Test Cases
+
+- [x] Normal flow — acceptable fit produces a polished CV in validated JSON format.
+- [x] Normal flow — poor fit produces a structured warning and stops CV tailoring.
+- [x] Validation failure — invalid AI output is rejected and logged.
+- [x] Manual quality review — review whether the assigned fit level is reasonable for the provided CV and job ad.
+
+### Notes
+
+- Displaying results in the frontend belongs to a later task.
+- Fit quality must be reviewed manually because a structurally valid AI response may still contain a poor assessment.
+
+## TASK-008 — Build CV Results UI, Preview and Direct PDF Export
+
+### Status
+
+Done
+
+### Goal
+
+Complete the CV optimization flow by saving, displaying and exporting the validated CV result.
+
+### Description
+
+This task delivers the validated CV optimization result to the user.
+
+The application saves the result to Firestore before displaying it, allows the user to reopen saved applications, renders the tailored CV in Streamlit and generates a downloadable PDF directly from the stored structured CV data.
+
+Browser Print / Save as PDF was replaced with direct PDF generation because Streamlit browser printing produced inconsistent page breaks and layout results.
+
+### Dependencies
+
+TASK-007 must be completed first.
+
+### Subtasks
+
+- [x] Save the validated application result to Firestore before displaying it to the user with status `draft`.
+- [x] Create the CV results page.
+- [x] Load the saved application using its `application_id`.
+- [x] Render the CV from the stored structured data.
+- [x] Add a success modal with the message `Your CV is ready`.
+- [x] Add a `Check it now` button that opens the preview in the same tab.
+- [x] Add a `My Applications` page or menu option.
+- [x] Sort saved applications from newest to oldest.
+- [x] Allow the user to reopen a saved application.
+- [x] Create direct PDF generation from the tailored CV data.
+- [x] Add a `Download CV as PDF` button.
+- [x] Support Unicode characters such as `Marković`.
+- [x] Limit the generated PDF to a maximum of two pages.
+- [x] Add handling for missing, invalid or unavailable application records.
+- [x] Log PDF generation attempts and failures.
+
+### Acceptance Criteria
+
+- [x] The result is saved to Firestore with status `draft` before it is displayed.
+- [x] When the CV is prepared, the user sees the `Your CV is ready` modal.
+- [x] Clicking `Check it now` opens the correct saved result in the same tab.
+- [x] The preview loads the correct application using its `application_id`.
+- [x] Previous applications are available through `My Applications`.
+- [x] Applications are displayed from newest to oldest.
+- [x] A saved application can be reopened.
+- [x] The CV can be downloaded as a generated PDF.
+- [x] The PDF contains the tailored CV content.
+- [x] The PDF supports Serbian characters.
+- [x] The generated PDF has a maximum of two pages.
+- [x] Missing, invalid and unavailable records are handled safely.
+
+### Measurements
+
+- The draft application can be verified in Firestore.
+- The success modal appears after the result is saved.
+- `Check it now` opens the correct result.
+- `My Applications` lists saved results newest first.
+- A saved application can be reopened.
+- The PDF downloads and opens successfully.
+- The generated PDF contains two pages or fewer.
+- Invalid and missing records do not crash the UI.
+
+### Test Cases
+
+- [x] Normal flow — the CV patch is merged into a complete CV.
+- [x] Normal flow — the draft application is saved and reloaded before display.
+- [x] Normal flow — the preview renders the correct saved CV.
+- [x] Normal flow — saved applications are sorted newest first.
+- [x] Expected failure — a nonexistent `application_id` returns a controlled not-found result.
+- [x] Expected failure — invalid stored application data is rejected.
+- [x] Expected failure — Firestore loading failures are handled safely.
+- [x] PDF generation — a valid PDF is generated from the tailored CV.
+- [x] PDF generation — the PDF contains a maximum of two pages.
+- [x] Manual UI test — the success modal appears and `Check it now` opens the preview.
+- [x] Manual UI test — the PDF downloads and opens successfully.
+- [x] Manual content review — the generated CV content is usable as a first version.
+
+### Notes
+
+- PDF content is generated from the validated and stored structured CV data.
+- PDF generation is independent of the Streamlit browser layout.
+- The current PDF is considered usable for V1.
+- Final visual polish is intentionally deferred until after the revision workflow.
+
+## TASK-009 — Define Section Revision Models and Validation Rules
+
+### Status
+
+Done
+
+### Goal
+
+This task will define the models and validation rules required to revise only the CV sections selected by the user.
+
+### Description
+
+In this task, we will define the request and response formats for section revisions.
+
+The revision response will contain only the selected sections. Each revised section will be validated separately, merged with the existing CV, and the complete merged result will then pass the full validation from TASK-006.
+
+### Dependencies
+
+TASK-008 must be completed first.
+
+### Subtasks
+
+- [x] Define the revision request model.
+- [x] Define how selected sections and user comments are represented.
+- [x] Define the revision response model.
+- [x] Allow the response to contain only requested sections.
+- [x] Create section-specific validation rules.
+- [x] Reject sections that were not requested.
+- [x] Reject unexpected keys.
+- [x] Validate each revised section before merging.
+- [x] Merge validated revisions with the existing CV.
+- [x] Run complete CV validation after the merge.
+- [x] Return all revision validation failure reasons.
+- [x] Log revision validation and merge failures.
+
+### Acceptance Criteria
+
+- [ ] Revision request and response JSON formats are defined.
+- [ ] Each selected section can contain its own user comment.
+- [ ] AI response may contain only the requested sections.
+- [ ] Additional or unrequested sections are rejected.
+- [ ] Each revised section follows its section-specific validation rules.
+- [ ] Valid revised sections replace the existing sections.
+- [ ] Sections not selected for revision remain unchanged.
+- [ ] The complete merged result passes the full TASK-006 validation.
+- [ ] Validation failures return and log all detected reasons.
+
+### Measurements
+
+- Only selected sections can be revised.
+- Unrequested sections are rejected.
+- Invalid revised sections fail validation.
+- Unchanged sections remain identical.
+- The merged CV passes complete validation.
+- All validation errors are logged.
+
+### Test Cases
+
+- [x] Normal flow — selected sections are validated, merged and pass complete validation.
+- [x] Missing section — the response does not contain one of the requested sections.
+- [x] Additional section — the response contains a section that was not requested.
+- [x] Wrong type — a revised section contains an invalid data type.
+- [x] Wrong size — revised content does not meet its length rules.
+- [x] Merge failure — the merged result fails complete CV validation.
+
+### Notes
+
+- Revision validation is separate from complete CV validation.
+- The cleaner may remove wrappers but must not modify revision content.
 
 ---
 

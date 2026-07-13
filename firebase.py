@@ -460,3 +460,196 @@ def format_timestamp_amsterdam(
     return timestamp.astimezone(
         AMSTERDAM_TIMEZONE
     ).strftime(date_format)
+
+def list_applications(
+    profile_id: str | None = None,
+) -> list[dict[str, Any]]:
+    client = get_firestore_client()
+
+    snapshots = _run_with_retry(
+        operation_name="list applications",
+        operation=lambda: list(
+            client.collection(
+                APPLICATIONS_COLLECTION
+            ).stream(
+                retry=None,
+                timeout=FIRESTORE_TIMEOUT_SECONDS,
+            )
+        ),
+    )
+
+    records: list[dict[str, Any]] = []
+
+    for snapshot in snapshots:
+        data = snapshot.to_dict()
+
+        if data is None:
+            logger.error(
+                "Application record contains no data: %s",
+                snapshot.id,
+            )
+            continue
+
+        try:
+            validated_record = _validate_record(
+                ApplicationStoredRecord,
+                data,
+                context=(
+                    f"stored application {snapshot.id}"
+                ),
+            )
+        except ValidationError:
+            logger.error(
+                "Invalid application skipped while listing: %s",
+                snapshot.id,
+            )
+            continue
+
+        record = validated_record.model_dump(
+            mode="python"
+        )
+
+        if (
+            profile_id is not None
+            and record["profile_id"] != profile_id
+        ):
+            continue
+
+        records.append(record)
+
+    records.sort(
+        key=lambda item: item["created_at"],
+        reverse=True,
+    )
+
+    logger.info(
+        "Application records listed: count=%s profile_id=%s",
+        len(records),
+        profile_id,
+    )
+
+    return records
+def update_application(
+    application_id: str,
+    application_updates: dict[str, Any],
+) -> str:
+    application_id = _validate_document_id(
+        application_id
+    )
+
+    allowed_fields = set(
+        ApplicationRecordInput
+        .model_fields
+    )
+
+    unexpected_fields = (
+        set(application_updates)
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise ValueError(
+            "Unexpected application update fields: "
+            + ", ".join(
+                sorted(
+                    unexpected_fields
+                )
+            )
+        )
+
+    existing_record = get_application(
+        application_id
+    )
+
+    if existing_record is None:
+        raise KeyError(
+            f"Application does not exist: "
+            f"{application_id}"
+        )
+
+    merged_input = {
+        field_name: (
+            application_updates[
+                field_name
+            ]
+            if field_name
+            in application_updates
+            else existing_record[
+                field_name
+            ]
+        )
+        for field_name in allowed_fields
+    }
+
+    validated_input = _validate_record(
+        ApplicationRecordInput,
+        merged_input,
+        context=(
+            f"application update "
+            f"{application_id}"
+        ),
+    )
+
+    accepted_at: Any = None
+
+    if (
+        validated_input.status
+        == "accepted"
+    ):
+        accepted_at = (
+            existing_record.get(
+                "accepted_at"
+            )
+            or firestore.SERVER_TIMESTAMP
+        )
+
+    record: dict[str, Any] = {
+        **validated_input.model_dump(
+            mode="python"
+        ),
+        "application_id": (
+            application_id
+        ),
+        "created_at": (
+            existing_record[
+                "created_at"
+            ]
+        ),
+        "updated_at": (
+            firestore.SERVER_TIMESTAMP
+        ),
+        "accepted_at": accepted_at,
+    }
+
+    client = get_firestore_client()
+
+    document = (
+        client.collection(
+            APPLICATIONS_COLLECTION
+        )
+        .document(application_id)
+    )
+
+    _run_with_retry(
+        operation_name=(
+            f"update application "
+            f"{application_id}"
+        ),
+        operation=lambda: document.set(
+            record,
+            merge=False,
+            retry=None,
+            timeout=(
+                FIRESTORE_TIMEOUT_SECONDS
+            ),
+        ),
+    )
+
+    logger.info(
+        "Application record updated: "
+        "application_id=%s status=%s",
+        application_id,
+        validated_input.status,
+    )
+
+    return application_id

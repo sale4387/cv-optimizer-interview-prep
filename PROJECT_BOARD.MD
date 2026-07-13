@@ -882,6 +882,250 @@ Success is measured by:
 - If storage size becomes a concern, the snapshot/reference decision can be reviewed later.
 - This task should be implemented carefully because it touches models, Firestore records, UI preview and workflow orchestration.
 
+## TASK-019 — Implement CV-First Inline Review and Granular Change Requests
+
+### Status
+
+Backlog
+
+### Goal
+
+Redesign the review experience so the CV is the primary screen and AI-suggested changes can be reviewed, accepted, kept or revised inline before final acceptance.
+
+### Description
+
+This task improves the human-in-the-loop review flow.
+
+The current workflow allows the user to request changes at broad section level after a tailored CV has already been generated.
+
+That is functional for the MVP, but it is not the ideal review experience.
+
+The user should not experience the AI result as a black box.
+
+The application should show the current CV as the primary page and display AI-suggested changes directly next to the relevant original CV content.
+
+The user should be able to understand:
+
+- what the original CV said
+- what the AI changed
+- why the change may be useful
+- whether the change is safe and accurate
+- whether to accept the suggestion
+- whether to keep the original text
+- whether to request a targeted revision
+
+The broad `Professional experience` revision box should be replaced by a more granular review flow.
+
+Instead of one large comment box for the full experience section, the user should be able to review and comment on smaller editable elements, such as:
+
+- professional summary
+- core skills
+- individual responsibility bullets
+- key achievement bullets
+- AI & Technical Projects
+- Tools and Technologies
+
+The goal is not to make the UI visually complex.
+
+The goal is to make AI changes transparent, reviewable and safer before the user accepts the final CV.
+
+This task should preserve the existing draft/accepted flow:
+
+- generated CV starts as draft
+- draft CV can be revised
+- accepted CV enables PDF download
+- final PDF export remains available only after acceptance
+
+### Dependencies
+
+- TASK-010 must be completed.
+- TASK-014 should be completed first.
+- Existing CV preview must be available.
+- Existing revision workflow must be available.
+- Existing draft and accepted application statuses must remain active.
+- Existing direct PDF export must remain active.
+
+### Subtasks
+
+- [ ] Make the CV view the default landing page.
+- [ ] Move optimization input into the side menu or a clearly separated side panel.
+- [ ] Keep `My Applications` accessible from the left side menu.
+- [ ] Keep `Companies` accessible from the left side menu if TASK-012 has been implemented.
+- [ ] Remove or de-emphasize the `Your CV is ready` modal as the main transition.
+- [ ] After optimization, route the user directly to the CV review view.
+- [ ] Display original CV content and AI-suggested content inline where possible.
+- [ ] Add inline review UI for professional summary.
+- [ ] Add inline review UI for core skills.
+- [ ] Add inline review UI for responsibility bullets.
+- [ ] Add inline review UI for key achievement bullets.
+- [ ] Add inline review UI for AI & Technical Projects.
+- [ ] Add inline review UI for Tools and Technologies.
+- [ ] Add per-element actions: accept suggestion, keep original, request change.
+- [ ] Add comment input only for the selected element being revised.
+- [ ] Avoid one large textbox for the full professional experience section.
+- [ ] Store review choices in session state or draft review state.
+- [ ] Apply accepted suggestions into the current draft CV.
+- [ ] Preserve original content when the user chooses to keep original text.
+- [ ] Send targeted revision requests only for selected editable elements.
+- [ ] Extend revision request models if current section-level model is not granular enough.
+- [ ] Extend validation so revised output can only change the selected editable element or allowed related patch field.
+- [ ] Ensure unreviewed or rejected AI suggestions are not silently included in the accepted CV.
+- [ ] Keep `Accept CV` disabled or clearly risky until required review choices are resolved.
+- [ ] Preserve existing PDF download behavior after acceptance.
+- [ ] Add empty states for fields that do not have AI suggestions.
+- [ ] Add visual distinction between original content, AI suggestion and accepted content.
+- [ ] Add logging for review decisions and targeted revision failures.
+- [ ] Add automated tests for review state and merge behavior where possible.
+- [ ] Add manual UI test checklist for inline review interactions.
+
+### Expected Review State Format
+
+```json
+{
+  "application_id": "application-id",
+  "review_status": "not_started | in_progress | ready_to_accept | accepted",
+  "items": [
+    {
+      "item_id": "summary",
+      "item_type": "professional_summary",
+      "source_section": "professional_summary",
+      "source_reference": "summary",
+      "original_value": "Original CV text.",
+      "suggested_value": "AI-suggested text.",
+      "current_value": "Currently selected text.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    },
+    {
+      "item_id": "experience_001_responsibility_001",
+      "item_type": "responsibility_bullet",
+      "source_section": "professional_experience",
+      "source_reference": "experience_001",
+      "original_value": "Original responsibility bullet.",
+      "suggested_value": "AI-suggested responsibility bullet.",
+      "current_value": "Currently selected bullet.",
+      "decision": "pending | accepted_suggestion | kept_original | revised",
+      "user_comment": "Optional user comment for targeted revision.",
+      "revision_status": "not_requested | pending | complete | failed",
+      "last_updated_at": "ISO datetime or null"
+    }
+  ],
+  "accepted_cv_snapshot": "CVProfile or null",
+  "created_at": "ISO datetime",
+  "updated_at": "ISO datetime"
+}
+```
+
+### UI Requirements
+
+The main screen should prioritize the CV.
+
+The side menu should contain:
+
+- optimize CV input
+- My Applications
+- Companies, if available
+- navigation to saved results
+
+The review view should show:
+
+- current CV content
+- AI suggestions inline
+- review state per editable item
+- request-change controls only where they are relevant
+- fit assessment and gap analysis if TASK-014 has been completed
+- company research and interview preparation if available
+
+For each editable item, the UI should support:
+
+- viewing original content
+- viewing AI suggestion
+- accepting AI suggestion
+- keeping original content
+- requesting a revision with a targeted comment
+- showing revision success or failure
+
+### Acceptance Criteria
+
+- [ ] The app can open with the CV as the primary view.
+- [ ] Optimization input is available from the side menu or side panel.
+- [ ] The user can start optimization without leaving the CV-first flow.
+- [ ] After optimization, the user is taken to the CV review view without relying on a success modal.
+- [ ] The user can see original CV content and AI-suggested content together.
+- [ ] Professional summary suggestions can be reviewed inline.
+- [ ] Core skills suggestions can be reviewed inline.
+- [ ] Responsibility bullet suggestions can be reviewed inline.
+- [ ] Key achievement bullet suggestions can be reviewed inline.
+- [ ] AI & Technical Projects can be reviewed or commented on inline.
+- [ ] Tools and Technologies can be reviewed or commented on inline.
+- [ ] The broad full-section `Professional experience` comment box is removed or replaced by granular controls.
+- [ ] The user can accept a suggestion for an individual editable item.
+- [ ] The user can keep the original value for an individual editable item.
+- [ ] The user can request a targeted revision for an individual editable item.
+- [ ] Targeted revision does not change unrelated CV content.
+- [ ] Review choices are preserved during the draft review session.
+- [ ] Accepted CV is built only from accepted suggestions, kept originals and completed revisions.
+- [ ] Draft CV remains editable until the user accepts it.
+- [ ] Accepted CV still enables direct PDF download.
+- [ ] Draft CV still blocks PDF download.
+- [ ] My Applications still works after the UI redesign.
+- [ ] Existing saved applications can still be opened.
+- [ ] Fit assessment and gap analysis remain visible if TASK-014 has been implemented.
+- [ ] The UI remains simple and readable.
+
+### Measurements
+
+Success is measured by:
+
+- User can understand what AI changed without comparing raw JSON or separate pages.
+- User can review individual CV changes instead of commenting on broad sections.
+- User can keep original content where AI suggestion is not preferred.
+- User can request changes to specific bullets or fields.
+- Final accepted CV does not include unreviewed or rejected suggestions.
+- Existing draft/accepted/PDF behavior remains intact.
+- The review flow feels transparent rather than black-box.
+
+### Test Cases
+
+- [ ] App opens with CV-first view.
+- [ ] User opens optimization form from side menu.
+- [ ] User completes optimization and is routed to inline review view.
+- [ ] Professional summary suggestion appears next to original summary.
+- [ ] User accepts professional summary suggestion.
+- [ ] User keeps original professional summary.
+- [ ] User requests revision for professional summary.
+- [ ] Responsibility bullet suggestion appears next to original bullet.
+- [ ] User accepts one responsibility bullet and keeps another original bullet.
+- [ ] User requests revision for one responsibility bullet; unrelated bullets remain unchanged.
+- [ ] Key achievement bullet can be reviewed or commented on.
+- [ ] AI & Technical Projects section can be reviewed or commented on.
+- [ ] Tools and Technologies section can be reviewed or commented on.
+- [ ] Unrequested AI changes are rejected by validation.
+- [ ] Review state survives rerun during the same draft session.
+- [ ] Accepted CV contains only selected final values.
+- [ ] Draft PDF download remains blocked.
+- [ ] Accepted PDF download remains available.
+- [ ] Saved application opens correctly from My Applications.
+- [ ] Existing application without review-state data opens safely.
+- [ ] Revision failure shows a clear error and does not corrupt the draft CV.
+
+### Notes
+
+- This is a UX and review-safety task, not a visual redesign task.
+- The UI should remain simple.
+- The task may require extending the current revision model beyond broad sections.
+- The task should not weaken factual validation.
+- The task should not allow AI to invent new experience, tools, metrics or achievements.
+- This task should not include company research or interview preparation generation.
+- Company research and interview preparation may be displayed if already available, but they are not generated by this task.
+- If the task becomes too large, it may be split into:
+  - CV-first layout
+  - inline comparison display
+  - granular review decisions
+  - granular targeted revisions
+
 ## TASK-015 — Test Complete Workflow, Edge Cases and Failure Handling
 
 ### Status
@@ -1075,6 +1319,253 @@ Success is measured by:
 - Cosmetic issues should not block completion unless they prevent real use.
 - Any accepted limitation must be written down before deployment preparation.
 - Final output of this task should include a test results log and a short list of remaining known issues.
+
+## TASK-011 — Perform Project Refactoring and Architecture Review
+
+### Status
+
+Backlog
+
+### Goal
+
+Review and clean the completed MVP codebase before deployment so the project is reliable, understandable and ready for portfolio presentation.
+
+### Description
+
+This task is performed after the complete workflow has been implemented and tested.
+
+The goal is not to add new product features.
+
+The goal is to review the real codebase that now exists, identify structural issues, clean unnecessary complexity and make sure the project architecture still matches the documented product direction.
+
+At this point, the application should already include:
+
+- CV optimization
+- fit assessment
+- gap analysis
+- company research
+- interview preparation
+- inline CV review
+- targeted revision
+- CV acceptance
+- direct PDF generation
+- saved application reopening
+- complete workflow testing
+
+This task should use the results of TASK-015 as input.
+
+Any known issues, repeated code, unclear boundaries, fragile logic or confusing file structure should be reviewed before Docker and deployment preparation.
+
+The review should focus on:
+
+- whether each module has a clear responsibility
+- whether frontend, service, AI workflow, validation, storage and rendering logic are properly separated
+- whether models and contracts are understandable
+- whether errors are handled consistently
+- whether logs are useful
+- whether tests cover the important behavior
+- whether temporary scripts, outputs or test artifacts should be removed or organized
+- whether documentation still matches the implemented architecture
+
+The task should produce a cleaner project, not a redesigned project.
+
+Large product changes should not be introduced here.
+
+### Dependencies
+
+- TASK-015 must be completed first.
+- Final test results log must be available.
+- Known issues from complete workflow testing must be available.
+- Current architecture and decisions documentation must be available.
+- Code should be committed before refactoring starts.
+
+### Subtasks
+
+- [ ] Review TASK-015 test results and known issues.
+- [ ] Create a short refactoring checklist before changing code.
+- [ ] Review project folder structure.
+- [ ] Review Streamlit UI entry points.
+- [ ] Review FastAPI backend entry points.
+- [ ] Review service layer responsibilities.
+- [ ] Review AI workflow responsibilities.
+- [ ] Review validation layer responsibilities.
+- [ ] Review Firestore storage logic.
+- [ ] Review PDF rendering logic.
+- [ ] Review configuration and environment variable usage.
+- [ ] Review logging consistency.
+- [ ] Review error handling consistency.
+- [ ] Review naming consistency across files, functions and models.
+- [ ] Review duplicated or near-duplicated logic.
+- [ ] Remove unused imports, dead code and obsolete helper scripts.
+- [ ] Move temporary files or generated outputs out of the main project flow.
+- [ ] Ensure no secrets, credentials or private files are tracked.
+- [ ] Ensure `.gitignore` covers local-only files.
+- [ ] Check whether model names match their real purpose.
+- [ ] Check whether prompt versions and schema versions are clear.
+- [ ] Check whether old records and migration/fallback behavior are understandable.
+- [ ] Confirm that no refactor weakens validation.
+- [ ] Confirm that no refactor changes product behavior unintentionally.
+- [ ] Run automated tests after each meaningful refactor group.
+- [ ] Run complete workflow smoke test after refactoring.
+- [ ] Update documentation only where implementation changed.
+- [ ] Record final architecture review notes.
+
+### Review Areas
+
+#### Frontend
+
+Review whether Streamlit code is readable and separated enough.
+
+Check:
+
+- navigation
+- page rendering
+- sidebar logic
+- CV preview rendering
+- inline review rendering
+- fit and gap display
+- company report display
+- interview preparation display
+- PDF download controls
+- user-safe error messages
+
+#### Services
+
+Review whether service modules are clear orchestration boundaries.
+
+Check:
+
+- application creation
+- company research
+- interview preparation
+- revision handling
+- acceptance handling
+- PDF export handling
+- Firestore update usage
+
+#### AI Layer
+
+Review whether AI workflows are modular and testable.
+
+Check:
+
+- CV optimization workflow
+- company research workflow
+- interview preparation workflow
+- targeted revision workflow
+- prompt builders
+- response cleaner
+- validation calls
+- retry behavior
+
+#### Validation Layer
+
+Review whether validation still protects the product.
+
+Check:
+
+- AI JSON structure
+- CV factual boundaries
+- revision scope
+- company research source/limitation rules
+- interview preparation personalization rules
+- application package consistency
+- poor-fit rules
+
+#### Storage Layer
+
+Review whether Firestore records are stable and understandable.
+
+Check:
+
+- `companies` collection
+- `applications` collection
+- normalized company keys
+- timestamps
+- status fields
+- prompt and schema versions
+- old record compatibility
+- controlled failure behavior
+
+#### Project Hygiene
+
+Review whether the repository is clean enough for portfolio use.
+
+Check:
+
+- temporary scripts
+- generated outputs
+- old test logs
+- unused files
+- duplicate files
+- naming consistency
+- documentation accuracy
+- README instructions
+- `.env.example`
+- `.gitignore`
+
+### Acceptance Criteria
+
+- [ ] Codebase structure is understandable.
+- [ ] No major temporary implementation files remain in the main project flow.
+- [ ] No secrets or credentials are tracked.
+- [ ] `.gitignore` covers local-only files.
+- [ ] Frontend responsibilities are clear.
+- [ ] Service-layer responsibilities are clear.
+- [ ] AI workflow responsibilities are clear.
+- [ ] Validation responsibilities are clear.
+- [ ] Storage responsibilities are clear.
+- [ ] Error handling is consistent enough for MVP.
+- [ ] Logging is useful for debugging.
+- [ ] Prompt and schema versions are clear.
+- [ ] Tests still pass after refactoring.
+- [ ] Complete workflow smoke test passes after refactoring.
+- [ ] Documentation is updated only where implementation changed.
+- [ ] Final architecture review notes are written.
+- [ ] No product behavior is intentionally changed unless documented.
+
+### Measurements
+
+Success is measured by:
+
+- The project can be explained file-by-file at a high level.
+- The main workflow can still run after refactoring.
+- Automated tests still pass.
+- The complete workflow smoke test still passes.
+- No validation or safety rule was weakened.
+- The repository looks clean enough for portfolio review.
+- The documentation still matches the implementation.
+- Remaining technical debt is documented instead of hidden.
+
+### Test Cases
+
+- [ ] Run all existing automated tests before refactoring.
+- [ ] Run all existing automated tests after refactoring.
+- [ ] Run complete workflow smoke test after refactoring.
+- [ ] Create one new draft application after refactoring.
+- [ ] Open saved application after refactoring.
+- [ ] Accept CV after refactoring.
+- [ ] Download accepted PDF after refactoring.
+- [ ] Confirm draft PDF export is still blocked.
+- [ ] Confirm invalid AI output is still rejected.
+- [ ] Confirm targeted revision still changes only selected content.
+- [ ] Confirm company research cache still works.
+- [ ] Confirm interview preparation still loads from saved application.
+- [ ] Confirm poor-fit workflow still stops CV tailoring.
+- [ ] Confirm app starts locally with documented commands.
+- [ ] Confirm no local secret files are staged in Git.
+
+### Notes
+
+- This task should not become a product redesign.
+- This task should not add major new features.
+- Refactoring should be done in small safe groups.
+- Commit before starting this task.
+- Consider creating a separate branch for this task.
+- Prefer clarity over clever abstractions.
+- Keep the code understandable for future portfolio explanation.
+- Any larger architectural concern that cannot be fixed safely should be documented as known technical debt.
+- This task must be completed before Docker and deployment preparation.
 
 ## TASK-016 — Prepare Docker and Production Deployment
 
@@ -1482,249 +1973,6 @@ Success is measured by:
 - The portfolio story should emphasize product thinking, AI workflow design, validation, persistence and human review.
 - The final review should explain what was learned and what would be improved next.
 
-## TASK-019 — Implement CV-First Inline Review and Granular Change Requests
-
-### Status
-
-Backlog
-
-### Goal
-
-Redesign the review experience so the CV is the primary screen and AI-suggested changes can be reviewed, accepted, kept or revised inline before final acceptance.
-
-### Description
-
-This task improves the human-in-the-loop review flow.
-
-The current workflow allows the user to request changes at broad section level after a tailored CV has already been generated.
-
-That is functional for the MVP, but it is not the ideal review experience.
-
-The user should not experience the AI result as a black box.
-
-The application should show the current CV as the primary page and display AI-suggested changes directly next to the relevant original CV content.
-
-The user should be able to understand:
-
-- what the original CV said
-- what the AI changed
-- why the change may be useful
-- whether the change is safe and accurate
-- whether to accept the suggestion
-- whether to keep the original text
-- whether to request a targeted revision
-
-The broad `Professional experience` revision box should be replaced by a more granular review flow.
-
-Instead of one large comment box for the full experience section, the user should be able to review and comment on smaller editable elements, such as:
-
-- professional summary
-- core skills
-- individual responsibility bullets
-- key achievement bullets
-- AI & Technical Projects
-- Tools and Technologies
-
-The goal is not to make the UI visually complex.
-
-The goal is to make AI changes transparent, reviewable and safer before the user accepts the final CV.
-
-This task should preserve the existing draft/accepted flow:
-
-- generated CV starts as draft
-- draft CV can be revised
-- accepted CV enables PDF download
-- final PDF export remains available only after acceptance
-
-### Dependencies
-
-- TASK-010 must be completed.
-- TASK-014 should be completed first.
-- Existing CV preview must be available.
-- Existing revision workflow must be available.
-- Existing draft and accepted application statuses must remain active.
-- Existing direct PDF export must remain active.
-
-### Subtasks
-
-- [ ] Make the CV view the default landing page.
-- [ ] Move optimization input into the side menu or a clearly separated side panel.
-- [ ] Keep `My Applications` accessible from the left side menu.
-- [ ] Keep `Companies` accessible from the left side menu if TASK-012 has been implemented.
-- [ ] Remove or de-emphasize the `Your CV is ready` modal as the main transition.
-- [ ] After optimization, route the user directly to the CV review view.
-- [ ] Display original CV content and AI-suggested content inline where possible.
-- [ ] Add inline review UI for professional summary.
-- [ ] Add inline review UI for core skills.
-- [ ] Add inline review UI for responsibility bullets.
-- [ ] Add inline review UI for key achievement bullets.
-- [ ] Add inline review UI for AI & Technical Projects.
-- [ ] Add inline review UI for Tools and Technologies.
-- [ ] Add per-element actions: accept suggestion, keep original, request change.
-- [ ] Add comment input only for the selected element being revised.
-- [ ] Avoid one large textbox for the full professional experience section.
-- [ ] Store review choices in session state or draft review state.
-- [ ] Apply accepted suggestions into the current draft CV.
-- [ ] Preserve original content when the user chooses to keep original text.
-- [ ] Send targeted revision requests only for selected editable elements.
-- [ ] Extend revision request models if current section-level model is not granular enough.
-- [ ] Extend validation so revised output can only change the selected editable element or allowed related patch field.
-- [ ] Ensure unreviewed or rejected AI suggestions are not silently included in the accepted CV.
-- [ ] Keep `Accept CV` disabled or clearly risky until required review choices are resolved.
-- [ ] Preserve existing PDF download behavior after acceptance.
-- [ ] Add empty states for fields that do not have AI suggestions.
-- [ ] Add visual distinction between original content, AI suggestion and accepted content.
-- [ ] Add logging for review decisions and targeted revision failures.
-- [ ] Add automated tests for review state and merge behavior where possible.
-- [ ] Add manual UI test checklist for inline review interactions.
-
-### Expected Review State Format
-
-```json
-{
-  "application_id": "application-id",
-  "review_status": "not_started | in_progress | ready_to_accept | accepted",
-  "items": [
-    {
-      "item_id": "summary",
-      "item_type": "professional_summary",
-      "source_section": "professional_summary",
-      "source_reference": "summary",
-      "original_value": "Original CV text.",
-      "suggested_value": "AI-suggested text.",
-      "current_value": "Currently selected text.",
-      "decision": "pending | accepted_suggestion | kept_original | revised",
-      "user_comment": "Optional user comment for targeted revision.",
-      "revision_status": "not_requested | pending | complete | failed",
-      "last_updated_at": "ISO datetime or null"
-    },
-    {
-      "item_id": "experience_001_responsibility_001",
-      "item_type": "responsibility_bullet",
-      "source_section": "professional_experience",
-      "source_reference": "experience_001",
-      "original_value": "Original responsibility bullet.",
-      "suggested_value": "AI-suggested responsibility bullet.",
-      "current_value": "Currently selected bullet.",
-      "decision": "pending | accepted_suggestion | kept_original | revised",
-      "user_comment": "Optional user comment for targeted revision.",
-      "revision_status": "not_requested | pending | complete | failed",
-      "last_updated_at": "ISO datetime or null"
-    }
-  ],
-  "accepted_cv_snapshot": "CVProfile or null",
-  "created_at": "ISO datetime",
-  "updated_at": "ISO datetime"
-}
-```
-
-### UI Requirements
-
-The main screen should prioritize the CV.
-
-The side menu should contain:
-
-- optimize CV input
-- My Applications
-- Companies, if available
-- navigation to saved results
-
-The review view should show:
-
-- current CV content
-- AI suggestions inline
-- review state per editable item
-- request-change controls only where they are relevant
-- fit assessment and gap analysis if TASK-014 has been completed
-- company research and interview preparation if available
-
-For each editable item, the UI should support:
-
-- viewing original content
-- viewing AI suggestion
-- accepting AI suggestion
-- keeping original content
-- requesting a revision with a targeted comment
-- showing revision success or failure
-
-### Acceptance Criteria
-
-- [ ] The app can open with the CV as the primary view.
-- [ ] Optimization input is available from the side menu or side panel.
-- [ ] The user can start optimization without leaving the CV-first flow.
-- [ ] After optimization, the user is taken to the CV review view without relying on a success modal.
-- [ ] The user can see original CV content and AI-suggested content together.
-- [ ] Professional summary suggestions can be reviewed inline.
-- [ ] Core skills suggestions can be reviewed inline.
-- [ ] Responsibility bullet suggestions can be reviewed inline.
-- [ ] Key achievement bullet suggestions can be reviewed inline.
-- [ ] AI & Technical Projects can be reviewed or commented on inline.
-- [ ] Tools and Technologies can be reviewed or commented on inline.
-- [ ] The broad full-section `Professional experience` comment box is removed or replaced by granular controls.
-- [ ] The user can accept a suggestion for an individual editable item.
-- [ ] The user can keep the original value for an individual editable item.
-- [ ] The user can request a targeted revision for an individual editable item.
-- [ ] Targeted revision does not change unrelated CV content.
-- [ ] Review choices are preserved during the draft review session.
-- [ ] Accepted CV is built only from accepted suggestions, kept originals and completed revisions.
-- [ ] Draft CV remains editable until the user accepts it.
-- [ ] Accepted CV still enables direct PDF download.
-- [ ] Draft CV still blocks PDF download.
-- [ ] My Applications still works after the UI redesign.
-- [ ] Existing saved applications can still be opened.
-- [ ] Fit assessment and gap analysis remain visible if TASK-014 has been implemented.
-- [ ] The UI remains simple and readable.
-
-### Measurements
-
-Success is measured by:
-
-- User can understand what AI changed without comparing raw JSON or separate pages.
-- User can review individual CV changes instead of commenting on broad sections.
-- User can keep original content where AI suggestion is not preferred.
-- User can request changes to specific bullets or fields.
-- Final accepted CV does not include unreviewed or rejected suggestions.
-- Existing draft/accepted/PDF behavior remains intact.
-- The review flow feels transparent rather than black-box.
-
-### Test Cases
-
-- [ ] App opens with CV-first view.
-- [ ] User opens optimization form from side menu.
-- [ ] User completes optimization and is routed to inline review view.
-- [ ] Professional summary suggestion appears next to original summary.
-- [ ] User accepts professional summary suggestion.
-- [ ] User keeps original professional summary.
-- [ ] User requests revision for professional summary.
-- [ ] Responsibility bullet suggestion appears next to original bullet.
-- [ ] User accepts one responsibility bullet and keeps another original bullet.
-- [ ] User requests revision for one responsibility bullet; unrelated bullets remain unchanged.
-- [ ] Key achievement bullet can be reviewed or commented on.
-- [ ] AI & Technical Projects section can be reviewed or commented on.
-- [ ] Tools and Technologies section can be reviewed or commented on.
-- [ ] Unrequested AI changes are rejected by validation.
-- [ ] Review state survives rerun during the same draft session.
-- [ ] Accepted CV contains only selected final values.
-- [ ] Draft PDF download remains blocked.
-- [ ] Accepted PDF download remains available.
-- [ ] Saved application opens correctly from My Applications.
-- [ ] Existing application without review-state data opens safely.
-- [ ] Revision failure shows a clear error and does not corrupt the draft CV.
-
-### Notes
-
-- This is a UX and review-safety task, not a visual redesign task.
-- The UI should remain simple.
-- The task may require extending the current revision model beyond broad sections.
-- The task should not weaken factual validation.
-- The task should not allow AI to invent new experience, tools, metrics or achievements.
-- This task should not include company research or interview preparation generation.
-- Company research and interview preparation may be displayed if already available, but they are not generated by this task.
-- If the task becomes too large, it may be split into:
-  - CV-first layout
-  - inline comparison display
-  - granular review decisions
-  - granular targeted revisions
 
 # This Sprint
 
@@ -1773,252 +2021,6 @@ Questions to answer:
 - What needs to happen before it continues?
 - Is this still part of the MVP?
 
-## TASK-011 — Perform Project Refactoring and Architecture Review
-
-### Status
-
-Backlog
-
-### Goal
-
-Review and clean the completed MVP codebase before deployment so the project is reliable, understandable and ready for portfolio presentation.
-
-### Description
-
-This task is performed after the complete workflow has been implemented and tested.
-
-The goal is not to add new product features.
-
-The goal is to review the real codebase that now exists, identify structural issues, clean unnecessary complexity and make sure the project architecture still matches the documented product direction.
-
-At this point, the application should already include:
-
-- CV optimization
-- fit assessment
-- gap analysis
-- company research
-- interview preparation
-- inline CV review
-- targeted revision
-- CV acceptance
-- direct PDF generation
-- saved application reopening
-- complete workflow testing
-
-This task should use the results of TASK-015 as input.
-
-Any known issues, repeated code, unclear boundaries, fragile logic or confusing file structure should be reviewed before Docker and deployment preparation.
-
-The review should focus on:
-
-- whether each module has a clear responsibility
-- whether frontend, service, AI workflow, validation, storage and rendering logic are properly separated
-- whether models and contracts are understandable
-- whether errors are handled consistently
-- whether logs are useful
-- whether tests cover the important behavior
-- whether temporary scripts, outputs or test artifacts should be removed or organized
-- whether documentation still matches the implemented architecture
-
-The task should produce a cleaner project, not a redesigned project.
-
-Large product changes should not be introduced here.
-
-### Dependencies
-
-- TASK-015 must be completed first.
-- Final test results log must be available.
-- Known issues from complete workflow testing must be available.
-- Current architecture and decisions documentation must be available.
-- Code should be committed before refactoring starts.
-
-### Subtasks
-
-- [ ] Review TASK-015 test results and known issues.
-- [ ] Create a short refactoring checklist before changing code.
-- [ ] Review project folder structure.
-- [ ] Review Streamlit UI entry points.
-- [ ] Review FastAPI backend entry points.
-- [ ] Review service layer responsibilities.
-- [ ] Review AI workflow responsibilities.
-- [ ] Review validation layer responsibilities.
-- [ ] Review Firestore storage logic.
-- [ ] Review PDF rendering logic.
-- [ ] Review configuration and environment variable usage.
-- [ ] Review logging consistency.
-- [ ] Review error handling consistency.
-- [ ] Review naming consistency across files, functions and models.
-- [ ] Review duplicated or near-duplicated logic.
-- [ ] Remove unused imports, dead code and obsolete helper scripts.
-- [ ] Move temporary files or generated outputs out of the main project flow.
-- [ ] Ensure no secrets, credentials or private files are tracked.
-- [ ] Ensure `.gitignore` covers local-only files.
-- [ ] Check whether model names match their real purpose.
-- [ ] Check whether prompt versions and schema versions are clear.
-- [ ] Check whether old records and migration/fallback behavior are understandable.
-- [ ] Confirm that no refactor weakens validation.
-- [ ] Confirm that no refactor changes product behavior unintentionally.
-- [ ] Run automated tests after each meaningful refactor group.
-- [ ] Run complete workflow smoke test after refactoring.
-- [ ] Update documentation only where implementation changed.
-- [ ] Record final architecture review notes.
-
-### Review Areas
-
-#### Frontend
-
-Review whether Streamlit code is readable and separated enough.
-
-Check:
-
-- navigation
-- page rendering
-- sidebar logic
-- CV preview rendering
-- inline review rendering
-- fit and gap display
-- company report display
-- interview preparation display
-- PDF download controls
-- user-safe error messages
-
-#### Services
-
-Review whether service modules are clear orchestration boundaries.
-
-Check:
-
-- application creation
-- company research
-- interview preparation
-- revision handling
-- acceptance handling
-- PDF export handling
-- Firestore update usage
-
-#### AI Layer
-
-Review whether AI workflows are modular and testable.
-
-Check:
-
-- CV optimization workflow
-- company research workflow
-- interview preparation workflow
-- targeted revision workflow
-- prompt builders
-- response cleaner
-- validation calls
-- retry behavior
-
-#### Validation Layer
-
-Review whether validation still protects the product.
-
-Check:
-
-- AI JSON structure
-- CV factual boundaries
-- revision scope
-- company research source/limitation rules
-- interview preparation personalization rules
-- application package consistency
-- poor-fit rules
-
-#### Storage Layer
-
-Review whether Firestore records are stable and understandable.
-
-Check:
-
-- `companies` collection
-- `applications` collection
-- normalized company keys
-- timestamps
-- status fields
-- prompt and schema versions
-- old record compatibility
-- controlled failure behavior
-
-#### Project Hygiene
-
-Review whether the repository is clean enough for portfolio use.
-
-Check:
-
-- temporary scripts
-- generated outputs
-- old test logs
-- unused files
-- duplicate files
-- naming consistency
-- documentation accuracy
-- README instructions
-- `.env.example`
-- `.gitignore`
-
-### Acceptance Criteria
-
-- [ ] Codebase structure is understandable.
-- [ ] No major temporary implementation files remain in the main project flow.
-- [ ] No secrets or credentials are tracked.
-- [ ] `.gitignore` covers local-only files.
-- [ ] Frontend responsibilities are clear.
-- [ ] Service-layer responsibilities are clear.
-- [ ] AI workflow responsibilities are clear.
-- [ ] Validation responsibilities are clear.
-- [ ] Storage responsibilities are clear.
-- [ ] Error handling is consistent enough for MVP.
-- [ ] Logging is useful for debugging.
-- [ ] Prompt and schema versions are clear.
-- [ ] Tests still pass after refactoring.
-- [ ] Complete workflow smoke test passes after refactoring.
-- [ ] Documentation is updated only where implementation changed.
-- [ ] Final architecture review notes are written.
-- [ ] No product behavior is intentionally changed unless documented.
-
-### Measurements
-
-Success is measured by:
-
-- The project can be explained file-by-file at a high level.
-- The main workflow can still run after refactoring.
-- Automated tests still pass.
-- The complete workflow smoke test still passes.
-- No validation or safety rule was weakened.
-- The repository looks clean enough for portfolio review.
-- The documentation still matches the implementation.
-- Remaining technical debt is documented instead of hidden.
-
-### Test Cases
-
-- [ ] Run all existing automated tests before refactoring.
-- [ ] Run all existing automated tests after refactoring.
-- [ ] Run complete workflow smoke test after refactoring.
-- [ ] Create one new draft application after refactoring.
-- [ ] Open saved application after refactoring.
-- [ ] Accept CV after refactoring.
-- [ ] Download accepted PDF after refactoring.
-- [ ] Confirm draft PDF export is still blocked.
-- [ ] Confirm invalid AI output is still rejected.
-- [ ] Confirm targeted revision still changes only selected content.
-- [ ] Confirm company research cache still works.
-- [ ] Confirm interview preparation still loads from saved application.
-- [ ] Confirm poor-fit workflow still stops CV tailoring.
-- [ ] Confirm app starts locally with documented commands.
-- [ ] Confirm no local secret files are staged in Git.
-
-### Notes
-
-- This task should not become a product redesign.
-- This task should not add major new features.
-- Refactoring should be done in small safe groups.
-- Commit before starting this task.
-- Consider creating a separate branch for this task.
-- Prefer clarity over clever abstractions.
-- Keep the code understandable for future portfolio explanation.
-- Any larger architectural concern that cannot be fixed safely should be documented as known technical debt.
-- This task must be completed before Docker and deployment preparation.
 
 ---
 
@@ -2932,7 +2934,7 @@ TASK-008 must be completed first.
 
 ### Status
 
-in Progress
+Done
 
 ### Goal
 
@@ -2964,7 +2966,7 @@ TASK-009 must be completed first.
 - [x] Save the revised result as the latest draft version.
 - [x] Keep the CV in `draft` status after revisions.
 - [x] Change the status to `accepted` only after the user clicks `Accept CV`.
-- [x] Enable browser PDF export only for an accepted CV.
+- [x] Enable direct PDF download only for an accepted CV.
 - [x] Log revision requests, completions and failures.
 
 ### Acceptance Criteria
@@ -2990,7 +2992,7 @@ TASK-009 must be completed first.
 - A successful revision updates only the selected sections.
 - Revised results remain in draft status.
 - Acceptance updates the Firestore status to `accepted`.
-- Accepted CVs can be saved through browser Print / Save as PDF.
+- Accepted CVs can be downloaded as a directly generated PDF.
 
 ### Test Cases
 

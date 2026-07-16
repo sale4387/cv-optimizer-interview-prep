@@ -36,10 +36,13 @@ from services.company_service import (
     CompanyResearchError,
     get_or_create_company_research,
 )
+from services.cv_content_rules import (
+    filter_responsibilities,
+)
 
 
 SCHEMA_VERSION = "1.0"
-PROMPT_VERSION = "task-007-v1"
+PROMPT_VERSION = "task-015-batch-4c-v1"
 
 
 class ApplicationResultError(RuntimeError):
@@ -57,6 +60,7 @@ class SavedApplicationResult(BaseModel):
     company_key: str
     job_title: str
     job_ad_hash: str
+    job_ad_text: str | None = None
     status: Literal["draft", "accepted"]
 
     fit_assessment: FitAssessment
@@ -181,8 +185,40 @@ def merge_cv_patch(
                 update.suggested_job_title
             )
 
-        experience["responsibilities"] = list(
-            update.responsibilities
+        filtered_responsibilities = (
+            filter_responsibilities(
+                update.responsibilities,
+                experience.get(
+                    "achievements",
+                    [],
+                ),
+            )
+        )
+
+        if not filtered_responsibilities:
+            filtered_responsibilities = (
+                filter_responsibilities(
+                    experience.get(
+                        "responsibilities",
+                        [],
+                    ),
+                    experience.get(
+                        "achievements",
+                        [],
+                    ),
+                )
+            )
+
+        if not filtered_responsibilities:
+            filtered_responsibilities = list(
+                experience.get(
+                    "responsibilities",
+                    [],
+                )
+            )[:1]
+
+        experience["responsibilities"] = (
+            filtered_responsibilities
         )
 
     return CVProfile.model_validate(merged_data)
@@ -196,6 +232,8 @@ def _build_application_payload(
     original_cv: CVProfile,
     optimization: CVOptimizationResponse,
     tailored_cv: CVProfile | None,
+    company_research_status: str,
+    company_research_error: str | None,
 ) -> dict[str, Any]:
     return {
         "profile_id": original_cv.profile_id,
@@ -211,6 +249,7 @@ def _build_application_payload(
         "job_ad_hash": hashlib.sha256(
             job_ad_text.strip().encode("utf-8")
         ).hexdigest(),
+        "job_ad_text": job_ad_text.strip(),
         "status": "draft",
         "fit_assessment": (
             optimization
@@ -233,8 +272,10 @@ def _build_application_payload(
             "cv_optimization": "complete",
             "fit_assessment": "complete",
             "gap_analysis": "complete",
-            "company_research": "not_started",
+            "company_research": company_research_status,
+            "company_research_error": company_research_error,
             "interview_prep": "not_started",
+            "interview_prep_error": None,
             "pdf_export": (
                 "available"
                 if tailored_cv is not None
@@ -359,17 +400,6 @@ def create_draft_application(
     )
 
     try:
-        try:
-            get_or_create_company_research(
-                company_name
-            )
-
-        except CompanyResearchError:
-            logger.exception(
-                "Company research failed but CV optimization will continue: company=%s",
-                company_name,
-            )
-
         workflow_result = optimize_cv_for_role(
             job_ad_text=job_ad_text,
             company_name=company_name,
@@ -382,20 +412,41 @@ def create_draft_application(
 
         tailored_cv = merge_cv_patch(
             original_cv=original_cv,
-            optimization=(
-                workflow_result.optimization
-            ),
+            optimization=workflow_result.optimization,
         )
+
+        company_research_status = "unavailable"
+        company_research_error: str | None = None
+
+        try:
+            saved_company = get_or_create_company_research(
+                company_name
+            )
+
+            company_research_status = (
+                saved_company
+                .company_research
+                .research_status
+            )
+
+        except CompanyResearchError as error:
+            company_research_error = str(error)
+
+            logger.exception(
+                "Company research failed but CV optimization "
+                "will continue: company=%s",
+                company_name,
+            )
 
         payload = _build_application_payload(
             job_title=cleaned_job_title,
             company_name=company_name,
             job_ad_text=job_ad_text,
             original_cv=original_cv,
-            optimization=(
-                workflow_result.optimization
-            ),
+            optimization=workflow_result.optimization,
             tailored_cv=tailored_cv,
+            company_research_status=company_research_status,
+            company_research_error=company_research_error,
         )
 
         application_id = save_application(
@@ -439,3 +490,19 @@ def create_draft_application(
         raise ApplicationResultError(
             "The application result could not be saved."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+create_draft_application = observe_function(
+    "application_workflow"
+)(create_draft_application)
+
+load_saved_application = observe_function(
+    "application_load"
+)(load_saved_application)
+
+list_saved_application_results = observe_function(
+    "application_list"
+)(list_saved_application_results)

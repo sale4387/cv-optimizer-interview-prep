@@ -452,3 +452,11 @@ def validate_cv_optimization_response(
             response_data
         )
     )
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+validate_cv_optimization_response = observe_function(
+    "cv_validation"
+)(validate_cv_optimization_response)

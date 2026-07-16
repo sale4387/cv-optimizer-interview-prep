@@ -335,3 +335,11 @@ def optimize_cv_for_role(
         raise CVOptimizationWorkflowError(
             "CV optimization workflow failed unexpectedly."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+optimize_cv_for_role = observe_function(
+    "cv_optimization_workflow"
+)(optimize_cv_for_role)

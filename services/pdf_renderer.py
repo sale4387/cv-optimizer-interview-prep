@@ -17,8 +17,8 @@ from reportlab.platypus import (
     KeepTogether,
     ListFlowable,
     ListItem,
-    PageBreak,
     Paragraph,
+    PTOContainer,
     SimpleDocTemplate,
     Spacer,
     Table,
@@ -27,10 +27,12 @@ from reportlab.platypus import (
 
 from cv_data.models import CVProfile
 from logger import logger
+from services.cv_content_rules import (
+    filter_responsibilities,
+)
 
 
 MAX_PDF_PAGES = 2
-PAGE_ONE_EXPERIENCE_COUNT = 3
 PROJECTS_TO_RENDER = 3
 
 FONT_SCALE_ATTEMPTS = (
@@ -170,7 +172,7 @@ def _build_styles(
             fontSize=7.15 * scale,
             leading=8.4 * scale,
             textColor=colors.HexColor("#626B78"),
-            spaceAfter=0.7 * mm * scale,
+            spaceAfter=0.9 * mm * scale,
         ),
         "bullet": ParagraphStyle(
             "CVBullet",
@@ -180,6 +182,7 @@ def _build_styles(
             textColor=colors.HexColor("#18202B"),
             leftIndent=0,
             firstLineIndent=0,
+            spaceAfter=0.15 * mm * scale,
         ),
         "small_bold": ParagraphStyle(
             "CVSmallBold",
@@ -187,7 +190,9 @@ def _build_styles(
             fontSize=7.6 * scale,
             leading=8.9 * scale,
             textColor=colors.HexColor("#18202B"),
-            spaceBefore=0.4 * mm * scale,
+            leftIndent=3 * mm * scale,
+            spaceBefore=0.8 * mm * scale,
+            spaceAfter=0.35 * mm * scale,
         ),
         "small": ParagraphStyle(
             "CVSmall",
@@ -233,28 +238,50 @@ def _section_heading(
 def _bullet_list(
     items: list[str],
     styles: dict[str, ParagraphStyle],
+    *,
+    indent_level: int = 0,
 ) -> ListFlowable:
+    scale = (
+        styles["bullet"].fontSize
+        / 7.75
+    )
+
+    list_indent = (
+        11
+        + (15 * indent_level)
+    ) * scale
+
     return ListFlowable(
         [
             ListItem(
-                Paragraph(_text(item), styles["bullet"]),
-                leftIndent=8,
+                Paragraph(
+                    _text(item),
+                    styles["bullet"],
+                ),
+                leftIndent=(
+                    7
+                    + (6 * indent_level)
+                ) * scale,
             )
             for item in items
         ],
         bulletType="bullet",
         start="circle",
-        leftIndent=11,
-        bulletFontName=styles["bullet"].fontName,
-        bulletFontSize=4.5,
-        spaceAfter=1.2 * mm,
+        leftIndent=list_indent,
+        bulletFontName=(
+            styles["bullet"].fontName
+        ),
+        bulletFontSize=4.3 * scale,
+        bulletDedent=11 * scale,
+        spaceBefore=0.15 * mm * scale,
+        spaceAfter=1.25 * mm * scale,
     )
 
 
 def _experience_block(
     experience: Any,
     styles: dict[str, ParagraphStyle],
-) -> KeepTogether:
+) -> list:
     header = Table(
         [
             [
@@ -274,50 +301,119 @@ def _experience_block(
                 ),
             ]
         ],
-        colWidths=[145 * mm, 38 * mm],
+        colWidths=[147 * mm, 45 * mm],
+    )
+
+    continuation_header = Table(
+        [
+            [
+                Paragraph(
+                    (
+                        f"{_text(experience.job_title)} - "
+                        f"{_text(experience.employer)} "
+                        f"(continued)"
+                    ),
+                    styles["entry_title"],
+                ),
+                Paragraph(
+                    (
+                        f"{_text(experience.start_date)} - "
+                        f"{_text(experience.end_date)}"
+                    ),
+                    styles["entry_date"],
+                ),
+            ]
+        ],
+        colWidths=[147 * mm, 45 * mm],
+    )
+
+    header_style = TableStyle(
+        [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]
     )
 
     header.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ]
+        header_style
+    )
+    continuation_header.setStyle(
+        header_style
+    )
+
+    location = Paragraph(
+        _text(experience.location),
+        styles["meta"],
+    )
+
+    continuation_location = Paragraph(
+        _text(experience.location),
+        styles["meta"],
+    )
+
+    header.keepWithNext = 1
+    location.keepWithNext = 1
+    continuation_header.keepWithNext = 1
+    continuation_location.keepWithNext = 1
+
+    rendered_responsibilities = (
+        filter_responsibilities(
+            experience.responsibilities,
+            experience.achievements,
         )
     )
 
-    elements: list = [
+    if not rendered_responsibilities:
+        rendered_responsibilities = list(
+            experience.responsibilities
+        )
+
+    content: list = [
         header,
-        Paragraph(
-            _text(experience.location),
-            styles["meta"],
-        ),
+        location,
         _bullet_list(
-            list(experience.responsibilities),
+            rendered_responsibilities,
             styles,
+            indent_level=0,
         ),
     ]
 
     if experience.achievements:
-        elements.extend(
+        achievement_heading = Paragraph(
+            "Key achievements",
+            styles["small_bold"],
+        )
+        achievement_heading.keepWithNext = 1
+
+        content.extend(
             [
-                Paragraph(
-                    "Key achievements",
-                    styles["small_bold"],
-                ),
+                achievement_heading,
                 _bullet_list(
-                    list(experience.achievements),
+                    list(
+                        experience.achievements
+                    ),
                     styles,
+                    indent_level=1,
                 ),
             ]
         )
 
-    elements.append(Spacer(1, 1.2 * mm))
-
-    return KeepTogether(elements)
+    return [
+        PTOContainer(
+            content,
+            header=[
+                continuation_header,
+                continuation_location,
+            ],
+        ),
+        Spacer(
+            1,
+            2.2 * mm,
+        ),
+    ]
 
 
 def _project_block(
@@ -344,7 +440,11 @@ def _project_block(
             Paragraph(
                 (
                     "<b>Technologies:</b> "
-                    + _text(", ".join(project.technologies))
+                    + _text(
+                        ", ".join(
+                            project.technologies
+                        )
+                    )
                 ),
                 styles["small"],
             )
@@ -353,12 +453,19 @@ def _project_block(
     if project.responsibilities:
         elements.append(
             _bullet_list(
-                list(project.responsibilities),
+                list(
+                    project.responsibilities
+                ),
                 styles,
+                indent_level=0,
             )
         )
 
-    if getattr(project, "outcomes", None):
+    if getattr(
+        project,
+        "outcomes",
+        None,
+    ):
         elements.extend(
             [
                 Paragraph(
@@ -366,15 +473,25 @@ def _project_block(
                     styles["small_bold"],
                 ),
                 _bullet_list(
-                    list(project.outcomes),
+                    list(
+                        project.outcomes
+                    ),
                     styles,
+                    indent_level=1,
                 ),
             ]
         )
 
-    elements.append(Spacer(1, 1.2 * mm))
+    elements.append(
+        Spacer(
+            1,
+            1.25 * mm,
+        )
+    )
 
-    return KeepTogether(elements)
+    return KeepTogether(
+        elements
+    )
 
 
 def _education_block(
@@ -445,56 +562,41 @@ def _build_story(
         ),
     ]
 
-    first_page_experience = (
-        cv.professional_experience[
-            :PAGE_ONE_EXPERIENCE_COUNT
-        ]
-    )
-
-    remaining_experience = (
-        cv.professional_experience[
-            PAGE_ONE_EXPERIENCE_COUNT:
-        ]
-    )
-
-    for experience in first_page_experience:
-        story.append(
+    for experience in (
+        cv.professional_experience
+    ):
+        story.extend(
             _experience_block(
                 experience,
                 styles,
             )
         )
 
-    if remaining_experience or cv.projects:
-        story.append(PageBreak())
-
-    if remaining_experience:
-        story.extend(
-            _section_heading(
-                "Professional Experience",
-                styles,
-            )
-        )
-
-        for experience in remaining_experience:
-            story.append(
-                _experience_block(
-                    experience,
-                    styles,
-                )
-            )
-
-    if cv.projects:
-        story.extend(
-            _section_heading(
-                "AI & Technical Projects",
-                styles,
-            )
-        )
-
-        for project in cv.projects[
+    projects = list(
+        cv.projects[
             :PROJECTS_TO_RENDER
-        ]:
+        ]
+    )
+
+    if projects:
+        first_project = projects[0]
+
+        story.append(
+            KeepTogether(
+                [
+                    *_section_heading(
+                        "AI & Technical Projects",
+                        styles,
+                    ),
+                    _project_block(
+                        first_project,
+                        styles,
+                    ),
+                ]
+            )
+        )
+
+        for project in projects[1:]:
             story.append(
                 _project_block(
                     project,
@@ -668,3 +770,11 @@ def generate_cv_pdf(
         raise PDFRenderError(
             "The CV PDF could not be generated."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+generate_cv_pdf = observe_function(
+    "pdf_generation"
+)(generate_cv_pdf)

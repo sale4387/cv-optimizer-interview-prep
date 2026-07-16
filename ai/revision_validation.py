@@ -464,3 +464,15 @@ def clean_validate_and_merge_revision(
         existing_response=existing_response,
         original_cv=original_cv,
     )
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+validate_revision_response = observe_function(
+    "revision_validation"
+)(validate_revision_response)
+
+validate_and_merge_revision = observe_function(
+    "revision_merge_validation"
+)(validate_and_merge_revision)

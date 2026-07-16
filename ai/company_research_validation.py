@@ -109,3 +109,11 @@ def validate_company_research_response(
     return CompanyResearchReport.model_validate(
         response_data
     )
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+validate_company_research_response = observe_function(
+    "company_research_validation"
+)(validate_company_research_response)

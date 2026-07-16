@@ -22,6 +22,7 @@ from pydantic import (
     Field,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 from config import settings
@@ -81,6 +82,11 @@ class ApplicationRecordInput(StorageModel):
     company_key: str = Field(min_length=4, max_length=200)
     job_title: str = Field(min_length=1, max_length=200)
     job_ad_hash: str = Field(min_length=8, max_length=200)
+    job_ad_text: str | None = Field(
+        default=None,
+        min_length=100,
+        max_length=50000,
+    )
 
     status: Literal["draft", "accepted"] = "draft"
 
@@ -121,6 +127,47 @@ class ApplicationStoredRecord(ApplicationRecordInput):
     updated_at: datetime
     accepted_at: datetime | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_interview_prep(
+        cls,
+        data: Any,
+    ) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+
+        canonical = normalized.get(
+            "interview_prep"
+        )
+
+        if canonical is None:
+            canonical = (
+                normalized.get(
+                    "application_interview_prep"
+                )
+                or normalized.get(
+                    "interview_preparation"
+                )
+            )
+
+        if canonical is not None:
+            normalized[
+                "interview_prep"
+            ] = canonical
+
+        normalized.pop(
+            "interview_preparation",
+            None,
+        )
+        normalized.pop(
+            "application_interview_prep",
+            None,
+        )
+
+        return normalized
+
 
 def _validate_record(
     model: type[ModelT],
@@ -142,11 +189,52 @@ def _run_with_retry(
     operation_name: str,
     operation: Callable[[], T],
 ) -> T:
-    for attempt in range(1, FIRESTORE_MAX_ATTEMPTS + 1):
-        try:
-            return operation()
+    from time import perf_counter
 
-        except RETRYABLE_FIRESTORE_ERRORS as error:
+    from observability import (
+        elapsed_ms,
+        log_metric,
+    )
+
+    overall_started_at = perf_counter()
+
+    for attempt in range(
+        1,
+        FIRESTORE_MAX_ATTEMPTS + 1,
+    ):
+        attempt_started_at = (
+            perf_counter()
+        )
+
+        try:
+            result = operation()
+
+        except (
+            RETRYABLE_FIRESTORE_ERRORS
+        ) as error:
+            final_attempt = (
+                attempt
+                == FIRESTORE_MAX_ATTEMPTS
+            )
+
+            log_metric(
+                event="firestore_operation",
+                status=(
+                    "failed"
+                    if final_attempt
+                    else "retry"
+                ),
+                duration_ms=elapsed_ms(
+                    attempt_started_at
+                ),
+                attempt=attempt,
+                max_attempts=(
+                    FIRESTORE_MAX_ATTEMPTS
+                ),
+                operation=operation_name,
+                error=error,
+            )
+
             logger.warning(
                 "Firestore operation failed: operation=%s "
                 "attempt=%s/%s error=%s",
@@ -156,21 +244,50 @@ def _run_with_retry(
                 type(error).__name__,
             )
 
-            if attempt == FIRESTORE_MAX_ATTEMPTS:
-                logger.error(
-                    "Firestore operation failed after maximum attempts: %s",
-                    operation_name,
-                )
+            if final_attempt:
                 raise
 
-            time.sleep(RETRY_DELAY_SECONDS * attempt)
+            time.sleep(
+                RETRY_DELAY_SECONDS
+                * attempt
+            )
 
-        except Exception:
+        except Exception as error:
+            log_metric(
+                event="firestore_operation",
+                status="failed",
+                duration_ms=elapsed_ms(
+                    attempt_started_at
+                ),
+                attempt=attempt,
+                max_attempts=(
+                    FIRESTORE_MAX_ATTEMPTS
+                ),
+                operation=operation_name,
+                error=error,
+            )
+
             logger.exception(
                 "Non-retryable Firestore failure: %s",
                 operation_name,
             )
             raise
+
+        else:
+            log_metric(
+                event="firestore_operation",
+                status="success",
+                duration_ms=elapsed_ms(
+                    overall_started_at
+                ),
+                attempt=attempt,
+                max_attempts=(
+                    FIRESTORE_MAX_ATTEMPTS
+                ),
+                operation=operation_name,
+            )
+
+            return result
 
     raise RuntimeError(
         f"Firestore operation ended unexpectedly: {operation_name}"

@@ -179,3 +179,11 @@ def generate_interview_preparation(
         raise InterviewPrepWorkflowError(
             "Interview preparation failed unexpectedly."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+generate_interview_preparation = observe_function(
+    "interview_prep_ai_workflow"
+)(generate_interview_preparation)

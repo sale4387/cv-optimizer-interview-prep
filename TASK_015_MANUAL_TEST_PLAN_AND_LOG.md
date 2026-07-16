@@ -54,10 +54,10 @@ python task_019_test_script.py
 Result:
 
 ```text
-TASK-012:
-TASK-013:
-TASK-014:
-TASK-019:
+TASK-012: Passed
+TASK-013: Passed
+TASK-014: Passed
+TASK-019: Passed
 Notes:
 ```
 
@@ -74,8 +74,8 @@ Steps:
 Result:
 
 ```text
-Status:
-Actual result:
+Status: Passed
+Actual result: 1-5 worked as expected.
 Notes:
 ```
 
@@ -113,15 +113,27 @@ Steps:
 Result:
 
 ```text
-Status:
-Actual first page:
-Candidate switch visible: yes/no
-Default candidate:
-Stored CV visible before optimization: yes/no
-Job form placement:
-Optimized CV review placement:
+Status: Partial
+Actual first page: Aleksandar CV
+Candidate switch visible: yes
+Default candidate: Aleksandar
+Stored CV visible before optimization: yes
+Job form placement: separate window
+Optimized CV review placement: new page below the comparission of current and optimized parts
 Issues:
+- Success modal still appears after optimization. This should be removed or de-emphasized.
+- Review is not fully inline inside the CV-first page.
+- Suggested changes appear below fit/gap as expandable sections.
+- Global Request changes button is redundant because each review item already has revision_requested.
 Screenshots:
+
+![0.3-1 Success modal still appears](docs/screenshots/task-015/0.3-1.png)
+
+![0.3-2 Review appears below fit-gap, not truly inline](docs/screenshots/task-015/0.3-2.png)
+
+![0.3-3 Per-item decision options](docs/screenshots/task-015/0.3-3.png)
+
+![0.3-4 Global Request changes button is redundant](docs/screenshots/task-015/0.3-4.png)
 ```
 
 ---
@@ -136,10 +148,105 @@ Inputs:
 
 ```text
 Candidate profile: Aleksandar Markovic
-Company:
-Country:
-Job title:
-Job ad:
+Company: Worldline
+Country: NL
+Job title:Strategic Account Manager
+Job ad:Who we are
+
+
+
+Worldline helps businesses of all shapes and sizes to accelerate their growth journey - quickly, simply, and securely. We are the innovators at the heart of the payments technology industry, shaping how the world pays and gets paid. Our technology powers the growth of millions of businesses across 5 continents. And just as we help our customers accelerate their business, we are committed to helping our people accelerate their careers. Together, we shape the evolution.
+
+
+
+The opportunity
+
+
+
+We are building a dynamic partnership team with a clear mission: empower Enterprise Accounts through unwavering support and innovative payments solutions. The sponsor translates ambitious goals into tangible results by cultivating strategic relationships and delivering cross-functional value across Indirect Sales, Product, Consulting, and Customer Support. This role blends strategic vision with hands-on execution, shaping client needs and guiding high-value deals from concept to outcome with disciplined CRM practices. It offers an international, multinational setting with global travel to meet clients and present transformative solutions. You will develop long-term account plans that drive sustained growth and measurable impact in payments. Join us to lead, inspire, and advance enterprise partnerships on the world stage.
+
+
+
+Day-to-day responsibilities
+
+
+
+Cultivate and manage relationships with Enterprise accounts, ensuring high levels of customer satisfaction and engagement.
+Serve as the primary point of contact for assigned accounts, understanding their business needs and objectives.
+Proactively identify and pursue new sales opportunities within existing accounts.
+Work closely with the line manager on ongoing opportunities, account status, and sales performance metrics.
+Maintain accurate and up-to-date records in the CRM system, documenting opportunities, progress and outcomes.
+Work closely with internal teams, including Indirect Sales, Product, Consulting and Customer Support to align on client needs and deliver solutions.
+Engage in international travel to meet clients, conduct presentations and attend industry events.
+
+
+Who are we looking for
+
+
+
+We look for big thinkers. People who can drive positive change, step up and show what’s next – people with passion, can-do attitude and a hunger to learn and grow. In practice this means:
+
+
+
+Proven Track Record in High-Value Sales
+
+
+
+At least 5 years experience in Key Account Management or Business Development
+Proven sales experience with technical complex solutions
+Capable of building strategic account plans that drive long term objectives
+Persuasive communicator, able to articulate a vision that delivers value
+Proactive, self-motivated, capable of anticipating customer needs and risks
+
+
+International mindset
+
+
+
+Used to work in multinational companies with matrix organizations
+Fluent in English, any other language is a plus
+
+
+Deep understanding of the Payment Industry
+
+
+Relationship-focused
+
+
+
+Displays customer empathy & relationship mindset
+Team oriented & collaborative
+Intellectually curious, energetic and innovative.
+A “can do” mindset
+
+
+Perks & Benefits
+
+
+
+At Worldline you’ll get the chance to be at the heart of the global payments technology industry and shape how the world pays and gets paid. On top of that, you will also:
+
+
+
+Be part of a company guided by a strong purpose to do good and recognized as top 1% of the most sustainable companies in all sectors worldwide.
+Work with inspiring colleagues and be empowered to learn, grow and accelerate your career.
+Work in an international environment with cutting edge technologies.
+Enjoy a wide range of benefits: medical insurance, pension found, tickets restaurant, company bonus, 50% of remote working.
+
+
+Shape the evolution
+
+
+
+We are on an exciting journey towards the next frontiers of payments technology, and we look for big thinkers, people with passion, can-do attitude and a hunger to learn and grow. Here you'll work with ambitious colleagues from around the world, take on unique challenges as a team, and make a real impact on the society. With an empowering culture, strong technology and extensive training opportunities, we help you accelerate your career - wherever you decide to go. Join our global team of 18,000 innovators and shape a tomorrow that is yours to own.
+
+
+
+Learn more about life at Worldline at jobs.worldline.com
+
+
+
+We are proud to be an Equal Opportunity employer. We do not discriminate based upon race, religion, color, national origin, sex, sexual orientation, gender identity, gender expression, age, status as an individual with a disability, or any applicable legally protected characteristics.
 Expected fit: strong / solid / stretch
 ```
 
@@ -181,16 +288,45 @@ Expected:
 - Reopened application keeps accepted state.
 ```
 
-Result:
+Status: PARTIAL
 
-```text
-Status:
 Actual result:
+
+- Application was saved as draft.
+- Fit assessment is visible.
+- Gap analysis is visible.
+- Tailored CV is visible.
+- Company research exists.
+- Interview prep appears under the company page only, not under the application.
+- Interview prep is not connected to the application record in DB.
+- Interview prep does not generate 10–15 likely interviewer questions.
+- Interview prep currently contains talking points and candidate questions to ask.
+- Inline review appears and decisions can be saved.
+- Application can be accepted.
+- PDF download becomes available only after accepting the CV.
+- Reopened application keeps accepted state.
+
 Application ID:
-Company key:
+CIzgbi98opkYnqJ9NfGk
+
 Issues:
+
+- Interview prep must be stored and displayed under the application, not only under company research.
+- Interview prep must generate 10–15 likely interviewer questions.
+- Candidate questions to ask must remain a separate section.
+- Save decision needs visible UI feedback.
+- Consider one Save all decisions button instead of saving each item separately.
+- Some AI suggestions show no visible change.
+- It is unclear after saving all review decisions whether the user should click Accept CV.
+- Company page readability needs improvement; headings and subtitles are too flat.
+- Role fit and risk assessment are too visually flat; fit levels should be easier to distinguish.
+- PDF download is placed too low after acceptance.
+- Accepted applications should not show active revision controls; they should show fit assessment, gap analysis, final CV and download button.
+
 Screenshots:
-```
+1-1.png, 1-2.png, 1-3.png, 1-4.png, 1-5.png
+
+````
 
 ---
 
@@ -209,7 +345,7 @@ Country:
 Job title:
 Job ad:
 Expected fit: strong / solid / stretch
-```
+````
 
 Steps:
 
@@ -231,10 +367,10 @@ Expected:
 Result:
 
 ```text
-Status:
+Status: Passed
 Actual result:
-Application ID:
-Issues:
+Application ID: w5fXfNZJkwLzEGJRzYR2
+Issues: None
 Screenshots:
 ```
 
@@ -283,10 +419,10 @@ Expected:
 Result:
 
 ```text
-Status:
+Status:Passed
 Actual result:
-Application ID:
-Issues:
+Application ID:eA9h7deE0SpdhaPZ9qmW
+Issues: None
 Screenshots:
 ```
 
@@ -325,55 +461,52 @@ Expected:
 - Company report is useful but not too long.
 ```
 
-Result:
+Status: FAIL / PARTIAL
 
-```text
-Status:
 Actual result:
-Company keys:
-Issues:
-Screenshots:
-```
+Company research failed safely because Gemini returned JSON that did not match the required schema. The response appears to have returned industry fields at the top level instead of nesting them under the required `industry` object.
+
+Issue:
+Company research prompt/validation needs hardening so AI always returns the full expected schema, or the workflow needs a controlled retry when required top-level fields are missing.
+
+Error:
+CompanyResearchValidationError:
+Missing required fields: research_status, confidence_level, short_description, industry, products_and_services, customers_and_market, competitors, public_company_information, employee_sentiment, interview_intelligence.
+Extra fields: primary_industry, secondary_industries, business_model.
 
 ---
 
 # Scenario 5 — Interview preparation quality
 
-Goal:
+Status: FAIL
 
-Confirm interview prep is application-specific and useful.
-
-Steps:
-
-1. Open an acceptable-fit application.
-2. Find interview prep from the application preview.
-3. Count questions.
-4. Check whether questions are likely interviewer questions.
-5. Check whether candidate questions to ask are separate.
-6. Check whether questions reference job ad, tailored CV or company.
-7. Check whether older/smaller experience has prep warnings.
-8. Check whether it avoids invented claims.
-
-Expected:
-
-```text
-- 10–15 likely interviewer questions.
-- Not generic.
-- Not only questions candidate should ask.
-- Tied to application, position and tailored CV.
-- Candidate questions to ask are a separate section.
-- No invented facts.
-```
-
-Result:
-
-```text
-Status:
 Question count:
+0 valid likely interviewer questions found.
+
 Actual result:
+
+- Interview prep is not displayed as an application-specific section.
+- Interview prep appears under the company profile/company research area.
+- It is not clearly connected to the selected application, job title, job ad or tailored CV.
+- It does not generate 10–15 likely interviewer questions.
+- Existing content is mostly talking points and candidate questions to ask.
+- Candidate questions to ask are not clearly separated from interviewer questions.
+- Questions do not sufficiently reference the job ad, tailored CV or application-specific fit/gap.
+- No useful prep warning is shown for weaker, older or smaller experience areas.
+
 Issues:
+
+- Interview prep must be generated and stored per application.
+- Interview prep must be visible from the application preview.
+- It must generate 10–15 likely questions the interviewer/company may ask the candidate.
+- Candidate questions to ask must be a separate section.
+- Questions should reference the company, role requirements, tailored CV, fit assessment and gap analysis.
+- Prompt must avoid generic coaching output.
+- Prompt must avoid inventing candidate experience or claims.
+- Interview prep should include warnings for weak areas, gaps or stretch-fit topics.
+
 Screenshots:
-```
+1-3.png
 
 ---
 
@@ -406,14 +539,37 @@ Expected:
 
 Result:
 
-```text
-Status:
+Status: PARTIAL
+
 Actual result:
+
+- Inline review section appears.
+- Differences are shown as expandable review items.
+- Decisions can be selected per item.
+- Decisions can be saved.
+- Accept / keep / revision_requested options exist.
+- It was not easy to clearly compare the original CV against the generated CV in one clean view.
+- Targeted revision flow was not fully validated in this round.
+- It was not confirmed clearly enough whether only the selected content changed.
+- Draft/accepted state behavior was partially checked through Scenario 1.
+
 Changed item:
-Unrelated content changed: yes/no
+Not fully validated in this round.
+
+Unrelated content changed:
+Not confirmed.
+
 Issues:
+
+- Inline review is technically available, but the comparison UX is not clear enough.
+- Original CV and optimized CV should be easier to compare side by side or section by section.
+- Targeted revision should be retested after review/PDF design cleanup.
+- Need to confirm that targeted revision changes only selected items.
+- Need to confirm unrelated CV sections remain unchanged.
+- This should be revisited together with CV review design and PDF layout fixes.
+
 Screenshots:
-```
+1-1.png, 1-2.png, 1-3.png
 
 ---
 
@@ -449,7 +605,7 @@ Expected:
 Result:
 
 ```text
-Status:
+Status: Passed
 Actual result:
 PDF filename:
 Issues:
@@ -485,7 +641,7 @@ Expected:
 Result:
 
 ```text
-Status:
+Status:Passed
 Actual result:
 Issues:
 Screenshots:
@@ -516,10 +672,10 @@ Expected:
 Result:
 
 ```text
-Status:
+Status: partial
 Actual result:
 Application ID:
-Issues:
+Issues: Seems that so far for same position and same job add new applicaiton was made and cv was done again
 Screenshots:
 ```
 
@@ -581,13 +737,43 @@ Use this section if still valid after testing.
 
 # Final Summary
 
-```text
-Overall result:
-Can demo full workflow: yes/no
+Overall result: PARTIAL
+
+Can demo full workflow: yes, with limitations
+
 Blockers:
+
+- Interview prep is not application-specific.
+- Interview prep does not generate 10–15 likely interviewer questions.
+- Candidate questions to ask are not clearly separated.
+- Company research can fail when Gemini returns JSON that does not match the required schema.
+
 High-priority fixes:
+
+- Move interview prep to application-level storage and application preview.
+- Rewrite interview prep prompt/schema for likely interviewer questions.
+- Add controlled retry for company research schema validation failures.
+- Clean accepted application view so revision controls are hidden after acceptance.
+- Improve CV comparison/review UX before retesting targeted revision.
+
 Medium-priority fixes:
+
+- Add visible feedback after saving review decisions.
+- Add one Save all decisions button.
+- Improve company page readability.
+- Improve role fit/risk visual hierarchy.
+- Move PDF download button higher.
+
 Cosmetic issues:
+
+- Remove or de-emphasize success modal after optimization.
+- Improve headings/subheadings on company page.
+- Make fit/risk labels easier to scan visually.
+
 Accepted limitations:
-Ready for TASK-011 refactor: yes/no
-```
+
+- Scenario 6 targeted revision was not fully validated.
+- Scenario 10 failure simulation was not fully tested.
+- PDF/design review will be retested after layout cleanup.
+
+Ready for TASK-011 refactor: no

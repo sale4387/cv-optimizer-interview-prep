@@ -109,3 +109,11 @@ def validate_interview_prep_response(
     return InterviewPreparationReport.model_validate(
         response_data
     )
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+validate_interview_prep_response = observe_function(
+    "interview_prep_validation"
+)(validate_interview_prep_response)

@@ -189,3 +189,11 @@ def send_gemini_request(
         f"Gemini request failed after "
         f"{max_attempts} total attempts."
     ) from last_error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+send_gemini_request = observe_function(
+    "ai_call"
+)(send_gemini_request)

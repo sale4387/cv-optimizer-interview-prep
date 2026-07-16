@@ -254,13 +254,6 @@ class TalkingPoint(
     how_to_use: MediumText
 
 
-class CandidateQuestion(
-    StrictCompanyResearchModel
-):
-    question: MediumText
-    reason: MediumText
-
-
 class InterviewRisk(
     StrictCompanyResearchModel
 ):
@@ -275,13 +268,26 @@ class InterviewIntelligence(
         TalkingPoint
     ] = Field(min_length=1, max_length=10)
 
-    questions_to_ask: list[
-        CandidateQuestion
-    ] = Field(min_length=1, max_length=10)
-
     risks_to_prepare_for: list[
         InterviewRisk
     ] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="before")
+    @classmethod
+    def remove_legacy_questions_to_ask(
+        cls,
+        value: object,
+    ) -> object:
+        """Accept old cached reports but remove duplicated questions."""
+        if isinstance(value, dict):
+            cleaned_value = dict(value)
+            cleaned_value.pop(
+                "questions_to_ask",
+                None,
+            )
+            return cleaned_value
+
+        return value
 
 
 class ResearchSource(

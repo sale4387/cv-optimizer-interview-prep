@@ -147,3 +147,11 @@ def revise_cv_sections(
         raise CVRevisionWorkflowError(
             "The requested CV revision failed unexpectedly."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+revise_cv_sections = observe_function(
+    "cv_revision_workflow"
+)(revise_cv_sections)

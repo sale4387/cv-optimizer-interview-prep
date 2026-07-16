@@ -1,262 +1,461 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 
-import re
-import sys
+import copy
+import logging
+import py_compile
 from pathlib import Path
-from typing import Callable
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from services.candidate_profile_service import (
-    get_default_candidate_profile,
-    list_candidate_options,
-    load_candidate_cv,
+
+PROJECT_ROOT = Path.cwd()
+
+logging.disable(
+    logging.CRITICAL
 )
 
 
-APP_PATH = Path("streamlit/app.py")
+def _cv_data() -> dict:
+    return {
+        "profile_id": "sale",
+        "cv_version": "1.0",
+        "personal_info": {
+            "full_name": "Test Candidate",
+            "location": "Netherlands",
+            "phone": "+31000000000",
+            "email": "test@example.com",
+            "linkedin": (
+                "https://linkedin.com/in/test"
+            ),
+        },
+        "professional_summary": (
+            "Commercial and product-oriented professional "
+            "with extensive account management, partnership "
+            "and technical workflow experience."
+        ),
+        "core_skills": [
+            "Project Management",
+            "Product Ownership",
+            "Partnership Management",
+            "Account Management",
+        ],
+        "professional_experience": [
+            {
+                "experience_id": "exp_001",
+                "employer": "Example Company",
+                "job_title": "Account Manager",
+                "location": "Netherlands",
+                "start_date": "2020",
+                "end_date": "Present",
+                "responsibilities": [
+                    "Original responsibility one.",
+                    "Original responsibility two.",
+                ],
+                "achievements": [
+                    "Original achievement."
+                ],
+            }
+        ],
+        "projects": [],
+        "education": [
+            {
+                "education_id": "edu_001",
+                "institution": "University",
+                "qualification": "Bachelor Degree",
+                "start_date": "2006",
+                "end_date": "2010",
+            }
+        ],
+        "languages": [
+            {
+                "language": "English",
+                "level": "Advanced",
+            }
+        ],
+        "tools_and_technologies": [
+            "Python"
+        ],
+    }
 
 
-def read_app() -> str:
-    if not APP_PATH.exists():
-        raise FileNotFoundError(
-            "streamlit/app.py was not found."
+def _application(
+    tailored_cv,
+):
+    return SimpleNamespace(
+        application_id="app-final-quality",
+        profile_id="sale",
+        status="draft",
+        tailored_cv=tailored_cv,
+    )
+
+
+def _test_compile() -> None:
+    files = (
+        "ai/prompts.py",
+        "services/interview_prep_service.py",
+        "services/inline_review_service.py",
+        "ui/inline_review.py",
+        "streamlit/app.py",
+    )
+
+    for name in files:
+        py_compile.compile(
+            str(PROJECT_ROOT / name),
+            doraise=True,
         )
 
-    return APP_PATH.read_text(
+
+def _test_prompt_safety() -> None:
+    from ai.prompts import (
+        INTERVIEW_PREP_SYSTEM_INSTRUCTION,
+        build_interview_prep_prompt,
+    )
+    from services.interview_prep_service import (
+        INTERVIEW_PREP_PROMPT_VERSION,
+    )
+
+    instruction = (
+        INTERVIEW_PREP_SYSTEM_INSTRUCTION
+    ).lower()
+
+    required = (
+        "past-tense claims",
+        "future or conditional bridge",
+        "do not infer",
+        "preparation_note",
+    )
+
+    for fragment in required:
+        if fragment not in instruction:
+            raise AssertionError(
+                "Missing interview factual-safety rule: "
+                f"{fragment}"
+            )
+
+    prompt = build_interview_prep_prompt(
+        application_id="app-test",
+        original_cv={},
+        tailored_cv={},
+        job_ad="x" * 120,
+        company_research=None,
+        generated_at="2026-07-16",
+    ).lower()
+
+    if (
+        "unsupported tactics or gap-closing actions"
+        not in prompt
+    ):
+        raise AssertionError(
+            "Prompt does not preserve useful "
+            "stretch-fit bridging."
+        )
+
+    if (
+        INTERVIEW_PREP_PROMPT_VERSION
+        != "task-015-final-quality-v1"
+    ):
+        raise AssertionError(
+            "Prompt version was not updated."
+        )
+
+
+def _test_keep_original_and_removal() -> None:
+    import services.inline_review_service as service
+
+    from cv_data.models import CVProfile
+    from services.inline_review_service import (
+        build_inline_review_state,
+        save_inline_review_decisions,
+        update_review_item_decision,
+    )
+
+    original = CVProfile.model_validate(
+        _cv_data()
+    )
+
+    tailored = copy.deepcopy(
+        _cv_data()
+    )
+
+    tailored["core_skills"] = [
+        "Account Management",
+        "Partnership Management",
+        "Project Management",
+        "Product Ownership",
+    ]
+
+    tailored[
+        "professional_experience"
+    ][0][
+        "responsibilities"
+    ] = [
+        "AI responsibility one.",
+    ]
+
+    application = _application(
+        tailored
+    )
+
+    updates: list[dict] = []
+
+    def capture_update(
+        application_id: str,
+        application_updates: dict,
+    ) -> str:
+        updates.append(
+            copy.deepcopy(
+                application_updates
+            )
+        )
+        return application_id
+
+    with (
+        patch.object(
+            service,
+            "_load_original_cv_for_application",
+            return_value=original,
+        ),
+        patch.object(
+            service,
+            "update_application",
+            side_effect=capture_update,
+        ),
+    ):
+        state = build_inline_review_state(
+            application
+        )
+
+        state = update_review_item_decision(
+            state,
+            item_id="core_skills",
+            decision="kept_original",
+        )
+
+        for item in list(
+            state.items
+        ):
+            if item.item_id == "core_skills":
+                continue
+
+            state = update_review_item_decision(
+                state,
+                item_id=item.item_id,
+                decision="accepted_suggestion",
+            )
+
+        saved_state = (
+            save_inline_review_decisions(
+                application,
+                state,
+            )
+        )
+
+    if (
+        saved_state.review_status
+        != "complete"
+    ):
+        raise AssertionError(
+            "Resolved review was not completed."
+        )
+
+    if len(updates) != 1:
+        raise AssertionError(
+            "Review decisions were not saved once."
+        )
+
+    final_cv = updates[0][
+        "tailored_cv"
+    ]
+
+    if final_cv[
+        "core_skills"
+    ] != _cv_data()[
+        "core_skills"
+    ]:
+        raise AssertionError(
+            "kept_original did not preserve "
+            "the exact skill order."
+        )
+
+    responsibilities = final_cv[
+        "professional_experience"
+    ][0][
+        "responsibilities"
+    ]
+
+    if responsibilities != [
+        "AI responsibility one."
+    ]:
+        raise AssertionError(
+            "Accepted empty AI bullet did not "
+            "remove the original bullet."
+        )
+
+
+def _test_revision_is_applied() -> None:
+    import services.inline_review_service as service
+    import services.revision_service as revision_service
+
+    from cv_data.models import CVProfile
+    from services.inline_review_service import (
+        build_inline_review_state,
+        save_inline_review_decisions,
+        update_review_item_decision,
+    )
+
+    original = CVProfile.model_validate(
+        _cv_data()
+    )
+
+    tailored = copy.deepcopy(
+        _cv_data()
+    )
+
+    tailored[
+        "professional_summary"
+    ] = (
+        "Initial AI professional summary with "
+        "commercial and technical positioning "
+        "for the selected role."
+    )
+
+    application = _application(
+        tailored
+    )
+
+    revised_data = copy.deepcopy(
+        tailored
+    )
+
+    revised_data[
+        "professional_summary"
+    ] = (
+        "Revised professional summary with concise "
+        "commercial and technical positioning for "
+        "the selected account management role."
+    )
+
+    revised_application = _application(
+        CVProfile.model_validate(
+            revised_data
+        )
+    )
+
+    updates: list[dict] = []
+
+    with (
+        patch.object(
+            service,
+            "_load_original_cv_for_application",
+            return_value=original,
+        ),
+        patch.object(
+            revision_service,
+            "revise_saved_application",
+            return_value=revised_application,
+        ) as revise_mock,
+        patch.object(
+            service,
+            "update_application",
+            side_effect=lambda app_id, data: (
+                updates.append(
+                    copy.deepcopy(data)
+                )
+                or app_id
+            ),
+        ),
+    ):
+        state = build_inline_review_state(
+            application
+        )
+
+        state = update_review_item_decision(
+            state,
+            item_id="professional_summary",
+            decision="revision_requested",
+            user_comment="Make it shorter.",
+        )
+
+        saved_state = (
+            save_inline_review_decisions(
+                application,
+                state,
+            )
+        )
+
+    revise_mock.assert_called_once()
+
+    summary_item = next(
+        item
+        for item in saved_state.items
+        if item.item_id
+        == "professional_summary"
+    )
+
+    if (
+        summary_item.decision
+        != "revised"
+    ):
+        raise AssertionError(
+            "Revision request was not marked revised."
+        )
+
+    if updates[0][
+        "tailored_cv"
+    ][
+        "professional_summary"
+    ] != revised_data[
+        "professional_summary"
+    ]:
+        raise AssertionError(
+            "Revised summary was not persisted."
+        )
+
+
+def _test_accept_is_guarded() -> None:
+    source = (
+        PROJECT_ROOT
+        / "streamlit"
+        / "app.py"
+    ).read_text(
         encoding="utf-8"
     )
 
-
-def count_sidebar_optimize_buttons(
-    app_text: str,
-) -> int:
-    return len(
-        re.findall(
-            r"st\.sidebar\.button\(\s*[\"']Optimize CV[\"']",
-            app_text,
-        )
+    required = (
+        "review_ready: bool",
+        "disabled=not review_ready",
+        "Save and resolve all inline review",
     )
 
-
-def test_cv_landing_file_exists() -> None:
-    assert Path("ui/cv_landing.py").exists()
-
-
-def test_cv_landing_imports() -> None:
-    from ui.cv_landing import render_cv_landing_page
-
-    assert callable(render_cv_landing_page)
-
-
-def test_default_profile_is_sale() -> None:
-    default_profile = get_default_candidate_profile()
-
-    assert default_profile.profile_id == "sale"
-
-
-def test_profiles_sale_and_svetlana_available() -> None:
-    profiles = list_candidate_options()
-    profile_ids = {
-        profile.profile_id
-        for profile in profiles
-    }
-
-    assert "sale" in profile_ids
-    assert "svetlana" in profile_ids
-
-
-def test_sale_cv_loads() -> None:
-    cv = load_candidate_cv("sale")
-
-    assert cv.profile_id == "sale"
-
-
-def test_svetlana_cv_loads() -> None:
-    cv = load_candidate_cv("svetlana")
-
-    assert cv.profile_id == "svetlana"
-
-
-def test_app_imports_cv_landing() -> None:
-    app_text = read_app()
-
-    assert "render_cv_landing_page" in app_text
-
-
-def test_app_has_cv_first_route() -> None:
-    app_text = read_app()
-
-    assert 'page == "cv"' in app_text
-    assert "render_cv_landing_page()" in app_text
-
-
-def test_app_has_optimize_route() -> None:
-    app_text = read_app()
-
-    assert 'page == "optimize"' in app_text
-    assert "_render_optimize_page()" in app_text
-
-
-def test_app_default_page_is_cv() -> None:
-    app_text = read_app()
-
-    assert (
-        'get("page", "cv")' in app_text
-        or "get('page', 'cv')" in app_text
-        or 'get("page") or "cv"' in app_text
-        or "get('page') or 'cv'" in app_text
-    )
-
-
-def test_app_not_defaulting_to_optimize() -> None:
-    app_text = read_app()
-
-    forbidden_fragments = [
-        'get("page", "optimize")',
-        "get('page', 'optimize')",
-        'get("page") or "optimize"',
-        "get('page') or 'optimize'",
-    ]
-
-    for fragment in forbidden_fragments:
-        assert fragment not in app_text
-
-
-def test_sidebar_has_current_cv_button() -> None:
-    app_text = read_app()
-
-    assert '"Current CV"' in app_text
-
-
-def test_sidebar_has_only_one_optimize_cv_button() -> None:
-    app_text = read_app()
-
-    count = count_sidebar_optimize_buttons(
-        app_text
-    )
-
-    assert count == 1, (
-        f"Expected exactly one sidebar Optimize CV button, found {count}."
-    )
-
-
-def test_sidebar_buttons_have_keys() -> None:
-    app_text = read_app()
-
-    sidebar_button_blocks = re.findall(
-        r"st\.sidebar\.button\([\s\S]*?\):",
-        app_text,
-    )
-
-    assert sidebar_button_blocks, (
-        "No sidebar buttons were found."
-    )
-
-    for block in sidebar_button_blocks:
-        assert "key=" in block, (
-            "A sidebar button is missing a unique key."
-        )
-
-
-def test_optimize_form_reads_profile_query_param() -> None:
-    app_text = read_app()
-
-    assert "requested_profile_id" in app_text
-    assert "default_profile_index" in app_text
-    assert "index=default_profile_index" in app_text
-
-
-TESTS: list[
-    tuple[str, Callable[[], None]]
-] = [
-    (
-        "CV landing file exists",
-        test_cv_landing_file_exists,
-    ),
-    (
-        "CV landing imports",
-        test_cv_landing_imports,
-    ),
-    (
-        "Default profile is sale",
-        test_default_profile_is_sale,
-    ),
-    (
-        "Profiles sale and svetlana available",
-        test_profiles_sale_and_svetlana_available,
-    ),
-    (
-        "Sale CV loads",
-        test_sale_cv_loads,
-    ),
-    (
-        "Svetlana CV loads",
-        test_svetlana_cv_loads,
-    ),
-    (
-        "App imports CV landing",
-        test_app_imports_cv_landing,
-    ),
-    (
-        "App has CV-first route",
-        test_app_has_cv_first_route,
-    ),
-    (
-        "App has optimize route",
-        test_app_has_optimize_route,
-    ),
-    (
-        "App default page is CV",
-        test_app_default_page_is_cv,
-    ),
-    (
-        "App does not default to optimize",
-        test_app_not_defaulting_to_optimize,
-    ),
-    (
-        "Sidebar has Current CV button",
-        test_sidebar_has_current_cv_button,
-    ),
-    (
-        "Sidebar has only one Optimize CV button",
-        test_sidebar_has_only_one_optimize_cv_button,
-    ),
-    (
-        "Sidebar buttons have keys",
-        test_sidebar_buttons_have_keys,
-    ),
-    (
-        "Optimize form reads profile query param",
-        test_optimize_form_reads_profile_query_param,
-    ),
-]
+    for fragment in required:
+        if fragment not in source:
+            raise AssertionError(
+                "Accept guard is missing: "
+                f"{fragment}"
+            )
 
 
 def main() -> int:
-    passed = 0
-    failed = 0
+    try:
+        _test_compile()
+        _test_prompt_safety()
+        _test_keep_original_and_removal()
+        _test_revision_is_applied()
+        _test_accept_is_guarded()
 
-    for test_name, test_function in TESTS:
-        try:
-            test_function()
+    except Exception as error:
+        print(
+            "[FAIL] TASK-015 FINAL-QUALITY: "
+            f"{error}"
+        )
+        return 1
 
-        except Exception as error:
-            failed += 1
-            print(
-                f"[FAIL] {test_name} — "
-                f"{type(error).__name__}: {error}"
-            )
-
-        else:
-            passed += 1
-            print(f"[PASS] {test_name}")
-
-    print()
     print(
-        f"Result: {passed} passed, {failed} failed"
+        "[PASS] TASK-015 FINAL-QUALITY tests passed."
     )
-
-    return 0 if failed == 0 else 1
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

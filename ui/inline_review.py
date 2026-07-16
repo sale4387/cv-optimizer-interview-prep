@@ -7,6 +7,8 @@ from services.inline_review_service import (
     ReviewState,
     build_inline_review_state,
     review_state_ready_to_accept,
+    revision_is_supported,
+    save_inline_review_decisions,
     update_review_item_decision,
 )
 
@@ -45,30 +47,81 @@ def _save_state(
     ] = state
 
 
-def render_inline_review(application) -> None:
+def _review_feedback_key(
+    application,
+) -> str:
+    return (
+        "inline_review_feedback_"
+        f"{application.application_id}"
+    )
+
+
+def _decision_widget_key(
+    state: ReviewState,
+    item_id: str,
+) -> str:
+    return (
+        "inline_review_decision_"
+        f"{state.application_id}_"
+        f"{item_id}"
+    )
+
+
+def _comment_widget_key(
+    state: ReviewState,
+    item_id: str,
+) -> str:
+    return (
+        "inline_review_comment_"
+        f"{state.application_id}_"
+        f"{item_id}"
+    )
+
+
+def render_inline_review(application) -> bool:
+    if getattr(
+        application,
+        "status",
+        None,
+    ) == "accepted":
+        return False
+
     if application.tailored_cv is None:
         st.info(
             "Inline review is available only when a tailored CV exists."
         )
-        return
+        return False
 
     try:
         state = _load_state(application)
 
     except InlineReviewError as error:
         st.warning(str(error))
-        return
+        return False
+
+    feedback_key = _review_feedback_key(
+        application
+    )
+
+    if st.session_state.pop(
+        feedback_key,
+        False,
+    ):
+        st.toast(
+            "Review decisions saved.",
+            icon="✅",
+        )
 
     if not state.items:
         st.info(
             "No inline differences were found between the original CV and the tailored CV."
         )
-        return
+        return True
 
     st.subheader("Inline CV review")
 
     st.caption(
-        "Review each AI-suggested change. Accept the suggestion, keep the original text, or mark the item for targeted revision."
+        "Review the suggestions, then save all decisions together."
     )
 
     ready = review_state_ready_to_accept(
@@ -85,6 +138,18 @@ def render_inline_review(application) -> None:
         )
 
     for item in state.items:
+        available_decisions = [
+            "pending",
+            "accepted_suggestion",
+            "kept_original",
+        ]
+
+        if revision_is_supported(
+            item
+        ):
+            available_decisions.append(
+                "revision_requested"
+            )
         with st.expander(
             f"{item.item_type}: {item.source_reference}"
         ):
@@ -92,70 +157,112 @@ def render_inline_review(application) -> None:
             st.write(item.original_value)
 
             st.markdown("**AI suggestion**")
-            st.write(item.suggested_value)
+
+            if item.suggested_value:
+                st.write(
+                    item.suggested_value
+                )
+            else:
+                st.caption(
+                    "Remove this bullet."
+                )
+
+            decision_key = _decision_widget_key(
+                state,
+                item.item_id,
+            )
 
             decision = st.radio(
                 "Decision",
-                options=[
-                    "pending",
-                    "accepted_suggestion",
-                    "kept_original",
-                    "revision_requested",
-                ],
-                index=[
-                    "pending",
-                    "accepted_suggestion",
-                    "kept_original",
-                    "revision_requested",
-                ].index(item.decision)
-                if item.decision
-                in [
-                    "pending",
-                    "accepted_suggestion",
-                    "kept_original",
-                    "revision_requested",
-                ]
-                else 0,
-                key=(
-                    "inline_review_decision_"
-                    f"{state.application_id}_"
-                    f"{item.item_id}"
+                options=available_decisions,
+                index=(
+                    available_decisions.index(
+                        item.decision
+                    )
+                    if item.decision
+                    in available_decisions
+                    else 0
                 ),
+                key=decision_key,
             )
 
-            comment = item.user_comment or ""
-
             if decision == "revision_requested":
-                comment = st.text_area(
+                st.text_area(
                     "Targeted revision comment",
-                    value=comment,
-                    key=(
-                        "inline_review_comment_"
-                        f"{state.application_id}_"
-                        f"{item.item_id}"
+                    value=item.user_comment or "",
+                    key=_comment_widget_key(
+                        state,
+                        item.item_id,
                     ),
                 )
 
-            if st.button(
-                "Save decision",
-                key=(
-                    "inline_review_save_"
-                    f"{state.application_id}_"
-                    f"{item.item_id}"
-                ),
-            ):
-                updated_state = update_review_item_decision(
+    if st.button(
+        "Save all decisions",
+        key=(
+            "inline_review_save_all_"
+            f"{state.application_id}"
+        ),
+        type="primary",
+        width="stretch",
+    ):
+        updated_state = state
+
+        for item in state.items:
+            decision = st.session_state.get(
+                _decision_widget_key(
                     state,
-                    item_id=item.item_id,
-                    decision=decision,
-                    user_comment=comment
-                    if comment
-                    else None,
+                    item.item_id,
+                ),
+                item.decision,
+            )
+
+            comment = None
+
+            if decision == "revision_requested":
+                raw_comment = st.session_state.get(
+                    _comment_widget_key(
+                        state,
+                        item.item_id,
+                    ),
+                    item.user_comment or "",
                 )
 
-                _save_state(
+                comment = (
+                    str(raw_comment).strip()
+                    or None
+                )
+
+            updated_state = (
+                update_review_item_decision(
+                    updated_state,
+                    item_id=item.item_id,
+                    decision=decision,
+                    user_comment=comment,
+                )
+            )
+
+        try:
+            saved_state = (
+                save_inline_review_decisions(
                     application,
                     updated_state,
                 )
+            )
 
-                st.rerun()
+        except InlineReviewError as error:
+            st.error(str(error))
+            return False
+
+        _save_state(
+            application,
+            saved_state,
+        )
+
+        st.session_state[
+            feedback_key
+        ] = True
+
+        st.rerun()
+
+    return ready
+

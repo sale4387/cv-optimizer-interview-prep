@@ -11,6 +11,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+    
+from ui.interview_prep import render_application_interview_prep
 
 from firebase import (
     format_timestamp_amsterdam,
@@ -128,38 +130,25 @@ def _navigate(
     )
 
 
-def _dismiss_success_dialog() -> None:
-    st.session_state[
-        "show_success_modal"
-    ] = False
-
-
-@st.dialog(
-    "CV optimization completed",
-    on_dismiss=_dismiss_success_dialog,
-)
-def _show_success_dialog(
-    application_id: str,
+def _queue_toast(
+    message: str,
 ) -> None:
-    st.write(
-        "CV optimization completed"
+    st.session_state[
+        "ui_toast_message"
+    ] = message
+
+
+def _show_pending_toast() -> None:
+    message = st.session_state.pop(
+        "ui_toast_message",
+        None,
     )
 
-    if st.button(
-        "Check it now",
-        type="primary",
-        width="stretch",
-    ):
-        st.session_state[
-            "show_success_modal"
-        ] = False
-
-        _navigate(
-            "preview",
-            application_id,
+    if message:
+        st.toast(
+            str(message),
+            icon="✅",
         )
-
-        st.rerun()
 
 
 def _render_sidebar() -> None:
@@ -306,67 +295,52 @@ def _render_optimize_page() -> None:
             )
         )
 
-    if submitted:
-        try:
-            with st.spinner(
-                "Analyzing fit, tailoring "
-                "the CV and saving the result..."
-            ):
-                saved_result = (
-                    create_draft_application(
-                        job_title=job_title,
-                        company_name=(
-                            company_name
-                        ),
-                        job_ad_text=(
-                            job_ad_text
-                        ),
-                        profile_path=(
-                            selected_candidate
-                            .cv_path
-                        ),
-                    )
+    if not submitted:
+        return
+
+    try:
+        with st.spinner(
+            "Analyzing fit, tailoring "
+            "the CV and saving the result..."
+        ):
+            saved_result = (
+                create_draft_application(
+                    job_title=job_title,
+                    company_name=(
+                        company_name
+                    ),
+                    job_ad_text=(
+                        job_ad_text
+                    ),
+                    profile_path=(
+                        selected_candidate
+                        .cv_path
+                    ),
                 )
-
-            st.session_state[
-                "latest_application_id"
-            ] = (
-                saved_result
-                .application_id
             )
 
-            st.session_state[
-                "show_success_modal"
-            ] = True
-
-            st.rerun()
-
-        except ValueError as error:
-            st.error(str(error))
-
-        except ApplicationResultError as error:
-            st.error(str(error))
-
-        except Exception:
-            st.error(
-                "The CV result could "
-                "not be created."
-            )
-
-    if st.session_state.get(
-        "show_success_modal",
-        False,
-    ):
-        application_id = (
-            st.session_state.get(
-                "latest_application_id"
-            )
+        _queue_toast(
+            "CV optimization completed."
         )
 
-        if application_id:
-            _show_success_dialog(
-                application_id
-            )
+        _navigate(
+            "preview",
+            saved_result.application_id,
+        )
+
+        st.rerun()
+
+    except ValueError as error:
+        st.error(str(error))
+
+    except ApplicationResultError as error:
+        st.error(str(error))
+
+    except Exception:
+        st.error(
+            "The CV result could "
+            "not be created."
+        )
 
 
 def _render_poor_fit(
@@ -567,103 +541,11 @@ def _safe_pdf_name(
     )
 
 
-def _render_review_controls(
+def _render_accepted_download(
     application: (
         SavedApplicationResult
     ),
 ) -> None:
-    if application.tailored_cv is None:
-        st.info(
-            "Request changes is available only when the application contains a tailored CV."
-        )
-        return
-
-    application_id = (
-        application.application_id
-    )
-
-    success_key = _revision_key(
-        application_id,
-        "success",
-    )
-
-    if st.session_state.pop(
-        success_key,
-        False,
-    ):
-        st.success(
-            "The selected sections "
-            "were updated. The CV "
-            "remains in draft status."
-        )
-
-    active_key = _revision_key(
-        application_id,
-        "active",
-    )
-
-    if application.status == "draft":
-        request_column, accept_column = (
-            st.columns(2)
-        )
-
-        with request_column:
-            if st.button(
-                "Request changes",
-                key=_revision_key(
-                    application_id,
-                    "request",
-                ),
-                width="stretch",
-            ):
-                st.session_state[
-                    active_key
-                ] = True
-
-                st.rerun()
-
-        with accept_column:
-            if st.button(
-                "Accept CV",
-                key=_revision_key(
-                    application_id,
-                    "accept",
-                ),
-                type="primary",
-                width="stretch",
-            ):
-                try:
-                    with st.spinner(
-                        "Accepting CV..."
-                    ):
-                        (
-                            accept_saved_application(
-                                application_id
-                            )
-                        )
-
-                    st.rerun()
-
-                except (
-                    ApplicationRevisionError
-                ) as error:
-                    st.error(str(error))
-
-        st.info(
-            "Accept the CV to enable "
-            "PDF download."
-        )
-
-        if st.session_state.get(
-            active_key,
-            False,
-        ):
-            _render_revision_editor(
-                application
-            )
-
-        return
-
     st.success(
         "CV accepted"
     )
@@ -701,6 +583,148 @@ def _render_review_controls(
             "The PDF could not "
             "be generated."
         )
+
+
+def _render_review_controls(
+    application: (
+        SavedApplicationResult
+    ),
+    *,
+    review_ready: bool,
+) -> None:
+    if application.tailored_cv is None:
+        st.info(
+            "Review controls are available only when the application contains a tailored CV."
+        )
+        return
+
+    if application.status != "draft":
+        return
+
+    application_id = (
+        application.application_id
+    )
+
+    success_key = _revision_key(
+        application_id,
+        "success",
+    )
+
+    if st.session_state.pop(
+        success_key,
+        False,
+    ):
+        st.toast(
+            "The selected sections "
+            "were updated.",
+            icon="✅",
+        )
+
+    st.caption(
+        "Use Inline CV review above to accept, keep or request revisions. "
+        "Accept the CV when the review is complete."
+    )
+
+    if not review_ready:
+        st.warning(
+            "Save and resolve all inline review "
+            "decisions before accepting the CV."
+        )
+
+    if st.button(
+        "Accept CV",
+        key=_revision_key(
+            application_id,
+            "accept",
+        ),
+        type="primary",
+        width="stretch",
+        disabled=not review_ready,
+    ):
+        try:
+            with st.spinner(
+                "Accepting CV..."
+            ):
+                accept_saved_application(
+                    application_id
+                )
+
+            st.rerun()
+
+        except (
+            ApplicationRevisionError
+        ) as error:
+            st.error(str(error))
+
+    st.info(
+        "Accept the CV to enable "
+        "PDF download."
+    )
+
+
+def _preview_section_key(
+    application_id: str,
+    section_name: str,
+) -> str:
+    return (
+        f"preview_section_"
+        f"{application_id}_"
+        f"{section_name}"
+    )
+
+
+def _workflow_status_label(
+    value: object,
+) -> str:
+    normalized = str(
+        value
+        or "not_started"
+    ).replace(
+        "_",
+        " ",
+    )
+
+    return normalized.title()
+
+
+def _render_section_toggle(
+    *,
+    application_id: str,
+    section_name: str,
+    title: str,
+    summary: str,
+    default_open: bool,
+) -> bool:
+    with st.container(
+        border=True
+    ):
+        title_column, toggle_column = (
+            st.columns(
+                [5, 1]
+            )
+        )
+
+        with title_column:
+            st.markdown(
+                f"### {title}"
+            )
+            st.caption(
+                summary
+            )
+
+        with toggle_column:
+            is_open = st.toggle(
+                "Open",
+                value=default_open,
+                key=(
+                    _preview_section_key(
+                        application_id,
+                        section_name,
+                    )
+                ),
+            )
+
+    return is_open
 
 
 def _render_preview_page() -> None:
@@ -750,27 +774,152 @@ def _render_preview_page() -> None:
         )
         return
 
-    render_fit_and_gap(
-        application
+    if application.status == "accepted":
+        _render_accepted_download(
+            application
+        )
+
+        st.divider()
+
+    workflow_status = dict(
+        application.workflow_status
+        or {}
     )
 
-    st.divider()
-
-    render_inline_review(
-        application
+    fit_summary = (
+        "Fit level: "
+        f"{application.fit_assessment.level.upper()} "
+        "· requirements, evidence, gaps "
+        "and preparation advice"
     )
 
-    st.divider()
-
-    _render_review_controls(
-        application
+    cv_summary = (
+        "Accepted CV · PDF available"
+        if application.status
+        == "accepted"
+        else (
+            "Draft CV · review decisions, "
+            "preview and acceptance"
+        )
     )
 
-    st.divider()
-
-    render_cv_preview(
-        application.tailored_cv
+    interview_status = (
+        _workflow_status_label(
+            workflow_status.get(
+                "interview_prep"
+            )
+        )
     )
+
+    interview_summary = (
+        "Status: "
+        f"{interview_status} · "
+        "application-specific questions, "
+        "evidence and answer guidance"
+    )
+
+    fit_open = _render_section_toggle(
+        application_id=(
+            application.application_id
+        ),
+        section_name="fit_gap",
+        title=(
+            "1. Fit, gap and "
+            "requirements"
+        ),
+        summary=fit_summary,
+        default_open=False,
+    )
+
+    if fit_open:
+        with st.container(
+            border=True
+        ):
+            render_fit_and_gap(
+                application
+            )
+
+    cv_open = _render_section_toggle(
+        application_id=(
+            application.application_id
+        ),
+        section_name="tailored_cv",
+        title="2. Tailored CV",
+        summary=cv_summary,
+        default_open=(
+            application.status
+            == "draft"
+        ),
+    )
+
+    if cv_open:
+        with st.container(
+            border=True
+        ):
+            review_ready = True
+
+            if (
+                application.status
+                == "draft"
+            ):
+                review_ready = (
+                    render_inline_review(
+                        application
+                    )
+                )
+
+                st.divider()
+
+            render_cv_preview(
+                application.tailored_cv
+            )
+
+            if (
+                application.status
+                == "draft"
+            ):
+                st.divider()
+
+                _render_review_controls(
+                    application,
+                    review_ready=(
+                        review_ready
+                    ),
+                )
+
+    interview_open = (
+        _render_section_toggle(
+            application_id=(
+                application.application_id
+            ),
+            section_name=(
+                "interview_prep"
+            ),
+            title=(
+                "3. Interview preparation"
+            ),
+            summary=(
+                interview_summary
+            ),
+            default_open=False,
+        )
+    )
+
+    if interview_open:
+        with st.container(
+            border=True
+        ):
+            try:
+                render_application_interview_prep(
+                    application
+                )
+
+            except Exception as error:
+                st.warning(
+                    "Interview preparation "
+                    "is unavailable: "
+                    f"{error}"
+                )
 
 
 def _render_application_card(
@@ -867,77 +1016,437 @@ def _render_company_report(
 
     st.title(report.display_name)
 
-    st.caption(
-        f"{report.company_key} · "
-        f"{report.research_status} · "
-        f"confidence: {report.confidence_level}"
+    status_column, confidence_column, industry_column = (
+        st.columns(3)
     )
 
-    st.subheader("Short description")
-    st.write(report.short_description)
+    with status_column:
+        st.metric(
+            "Research status",
+            report.research_status.title(),
+        )
 
-    st.subheader("Industry")
-    st.write(report.industry.primary_industry)
-    st.caption(report.industry.business_model)
+    with confidence_column:
+        st.metric(
+            "Confidence",
+            report.confidence_level.title(),
+        )
 
-    st.subheader("Products and services")
-    for item in report.products_and_services:
-        st.markdown(f"**{item.name}**")
-        st.write(item.description)
-        st.caption(item.why_it_matters_for_interview)
+    with industry_column:
+        st.metric(
+            "Primary industry",
+            report.industry.primary_industry,
+        )
 
-    st.subheader("Customers and market")
-    if report.customers_and_market.known_public_customers:
-        st.markdown("**Known public customers**")
-        for customer in report.customers_and_market.known_public_customers:
-            st.write(f"- {customer.name}: {customer.context}")
+    st.caption(
+        f"{report.company_key} · "
+        f"valid until "
+        f"{report.valid_until.date()}"
+    )
 
-    if report.customers_and_market.customer_types:
-        st.markdown("**Customer types**")
-        for customer_type in report.customers_and_market.customer_types:
-            st.write(f"- {customer_type}")
+    st.divider()
 
-    if report.customers_and_market.limitations:
-        st.info(report.customers_and_market.limitations)
+    with st.expander(
+        "1. Company overview",
+        expanded=False,
+    ):
+        st.markdown(
+            "#### Overview"
+        )
+        st.write(
+            report.short_description
+        )
 
-    st.subheader("Competitors")
-    for competitor in report.competitors:
-        st.write(f"- **{competitor.name}** — {competitor.reason}")
+        st.markdown(
+            "#### Industry and business model"
+        )
+        st.write(
+            report.industry.business_model
+        )
 
-    if report.recent_developments:
-        st.subheader("Recent developments")
-        for development in report.recent_developments:
-            st.markdown(f"**{development.title}**")
-            st.caption(f"{development.date} · {development.type}")
-            st.write(development.summary)
-            st.caption(development.interview_relevance)
+        if (
+            report.industry
+            .secondary_industries
+        ):
+            st.markdown(
+                "**Related industries**"
+            )
 
-    st.subheader("Interview intelligence")
-    st.markdown("**Talking points**")
-    for point in report.interview_intelligence.talking_points:
-        st.write(f"- **{point.topic}** — {point.how_to_use}")
+            for industry in (
+                report.industry
+                .secondary_industries
+            ):
+                st.write(
+                    f"- {industry}"
+                )
 
-    st.markdown("**Questions to ask**")
-    for question in report.interview_intelligence.questions_to_ask:
-        st.write(f"- {question.question}")
+    with st.expander(
+        "2. Products and services",
+        expanded=False,
+    ):
+        for item in (
+            report.products_and_services
+        ):
+            st.markdown(
+                f"#### {item.name}"
+            )
+            st.caption(
+                item.type.title()
+            )
+            st.write(
+                item.description
+            )
+            st.markdown(
+                "**Interview relevance**"
+            )
+            st.write(
+                item
+                .why_it_matters_for_interview
+            )
+            st.divider()
 
-    if report.interview_intelligence.risks_to_prepare_for:
-        st.markdown("**Risks to prepare for**")
-        for risk in report.interview_intelligence.risks_to_prepare_for:
-            st.write(f"- **{risk.risk}** — {risk.preparation_note}")
+    with st.expander(
+        "3. Customers and market",
+        expanded=False,
+    ):
+        st.markdown(
+            "#### Known public customers"
+        )
 
-    st.subheader("Employee sentiment")
-    st.write(report.employee_sentiment.summary)
-    st.caption(report.employee_sentiment.interview_caution)
+        known_customers = (
+            report.customers_and_market
+            .known_public_customers
+        )
 
-    if report.limitations:
-        st.subheader("Limitations")
-        for limitation in report.limitations:
-            st.write(f"- {limitation}")
+        if known_customers:
+            for customer in (
+                known_customers
+            ):
+                st.markdown(
+                    f"**{customer.name}**"
+                )
+                st.write(
+                    customer.context
+                )
 
-    st.subheader("Sources")
-    for source in report.sources:
-        st.write(f"- {source.title} — {source.url}")
+        else:
+            st.caption(
+                "No verified public customers listed."
+            )
+
+        st.markdown(
+            "#### Customer types"
+        )
+
+        customer_types = (
+            report.customers_and_market
+            .customer_types
+        )
+
+        if customer_types:
+            for customer_type in (
+                customer_types
+            ):
+                st.write(
+                    f"- {customer_type}"
+                )
+
+        else:
+            st.caption(
+                "No customer types listed."
+            )
+
+        st.markdown(
+            "#### Target markets"
+        )
+
+        target_markets = (
+            report.customers_and_market
+            .target_markets
+        )
+
+        if target_markets:
+            for target_market in (
+                target_markets
+            ):
+                st.write(
+                    f"- {target_market}"
+                )
+
+        else:
+            st.caption(
+                "No target markets listed."
+            )
+
+        limitations = (
+            report.customers_and_market
+            .limitations
+        )
+
+        if limitations:
+            st.info(
+                limitations
+            )
+
+    with st.expander(
+        "4. Competitors",
+        expanded=False,
+    ):
+        for competitor in (
+            report.competitors
+        ):
+            st.markdown(
+                f"#### {competitor.name}"
+            )
+            st.write(
+                competitor.reason
+            )
+
+            if competitor.comparison_note:
+                st.caption(
+                    competitor.comparison_note
+                )
+
+            st.divider()
+
+    with st.expander(
+        "5. Recent developments",
+        expanded=False,
+    ):
+        if report.recent_developments:
+            for development in (
+                report.recent_developments
+            ):
+                st.markdown(
+                    f"#### {development.title}"
+                )
+                st.caption(
+                    f"{development.date} · "
+                    f"{development.type}"
+                )
+                st.write(
+                    development.summary
+                )
+                st.markdown(
+                    "**Interview relevance**"
+                )
+                st.write(
+                    development
+                    .interview_relevance
+                )
+                st.divider()
+
+        else:
+            st.caption(
+                "No recent developments listed."
+            )
+
+    with st.expander(
+        "6. Interview intelligence",
+        expanded=False,
+    ):
+        talking_points = (
+            report.interview_intelligence
+            .talking_points
+        )
+
+        st.markdown(
+            "#### Company talking points"
+        )
+
+        if talking_points:
+            for point in (
+                talking_points
+            ):
+                st.markdown(
+                    f"**{point.topic}**"
+                )
+                st.write(
+                    point.why_it_matters
+                )
+                st.markdown(
+                    "**How to use it**"
+                )
+                st.write(
+                    point.how_to_use
+                )
+                st.divider()
+
+        else:
+            st.caption(
+                "No talking points listed."
+            )
+
+        risks = (
+            report.interview_intelligence
+            .risks_to_prepare_for
+        )
+
+        st.markdown(
+            "#### Company-related risks"
+        )
+
+        if risks:
+            for risk in risks:
+                st.markdown(
+                    f"**{risk.risk}**"
+                )
+                st.write(
+                    risk.preparation_note
+                )
+
+        else:
+            st.caption(
+                "No company-related risks listed."
+            )
+
+    with st.expander(
+        "7. Employee and public company signals",
+        expanded=False,
+    ):
+        st.markdown(
+            "#### Employee sentiment"
+        )
+        st.markdown(
+            "**Public signal:** "
+            + (
+                report.employee_sentiment
+                .signal
+                .replace(
+                    "_",
+                    " ",
+                )
+                .title()
+            )
+        )
+        st.write(
+            report.employee_sentiment
+            .summary
+        )
+        st.markdown(
+            "**Interview caution**"
+        )
+        st.write(
+            report.employee_sentiment
+            .interview_caution
+        )
+
+        if (
+            report.employee_sentiment
+            .positive_themes
+        ):
+            st.markdown(
+                "**Positive themes**"
+            )
+
+            for theme in (
+                report.employee_sentiment
+                .positive_themes
+            ):
+                st.write(
+                    f"- {theme}"
+                )
+
+        if (
+            report.employee_sentiment
+            .negative_themes
+        ):
+            st.markdown(
+                "**Negative themes**"
+            )
+
+            for theme in (
+                report.employee_sentiment
+                .negative_themes
+            ):
+                st.write(
+                    f"- {theme}"
+                )
+
+        if (
+            report.employee_sentiment
+            .limitations
+        ):
+            st.info(
+                report.employee_sentiment
+                .limitations
+            )
+
+        st.divider()
+
+        st.markdown(
+            "#### Public company information"
+        )
+
+        public_info = (
+            report.public_company_information
+        )
+
+        if public_info.is_public_company:
+            st.write(
+                f"Ticker: "
+                f"{public_info.ticker or 'Not listed'}"
+            )
+            st.write(
+                f"Exchange: "
+                f"{public_info.exchange or 'Not listed'}"
+            )
+
+        else:
+            st.write(
+                "The company is not marked "
+                "as publicly listed."
+            )
+
+        if public_info.summary:
+            st.write(
+                public_info.summary
+            )
+
+        if public_info.limitations:
+            st.caption(
+                public_info.limitations
+            )
+
+    with st.expander(
+        "8. Sources and limitations",
+        expanded=False,
+    ):
+        st.markdown(
+            "#### Research limitations"
+        )
+
+        if report.limitations:
+            for limitation in (
+                report.limitations
+            ):
+                st.warning(
+                    limitation
+                )
+
+        else:
+            st.caption(
+                "No report-level limitations listed."
+            )
+
+        st.markdown(
+            "#### Sources"
+        )
+
+        if report.sources:
+            for source in (
+                report.sources
+            ):
+                st.markdown(
+                    f"- [{source.title}]"
+                    f"({source.url}) — "
+                    f"{source.publisher}"
+                )
+
+        else:
+            st.caption(
+                "No sources listed."
+            )
 
 
 def _render_company_preview_page() -> None:
@@ -1032,6 +1541,7 @@ def main() -> None:
     )
 
     _render_sidebar()
+    _show_pending_toast()
 
     page = st.query_params.get(
         "page",

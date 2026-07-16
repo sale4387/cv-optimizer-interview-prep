@@ -59,6 +59,12 @@ Strict rules:
 - Never invent metrics, tools, responsibilities, employers, education,
   certifications or achievements.
 - Preserve the meaning of the original experience.
+- Keep responsibilities and achievements strictly separate.
+- Responsibilities describe recurring scope, ownership, processes and duties.
+- Achievements describe quantified outcomes, one-off wins, promotions,
+  acquisitions, awards and measurable commercial impact.
+- Never copy, paraphrase or move an existing achievement into responsibilities.
+- Metrics already present in achievements must remain only in achievements.
 - Reference only experience IDs that exist in the supplied CV.
 - Highlight only skills explicitly supported by the supplied CV.
 - If the fit level is poor, cv_patch must be null.
@@ -87,7 +93,7 @@ EXPECTED_RESPONSE_FORMAT = {
                 "experience_id": "an existing ID from the original CV",
                 "suggested_job_title": None,
                 "responsibilities": [
-                    "20-400 characters, maximum six per experience"
+                    "20-400 characters; maximum six; recurring scope only; exclude achievements and duplicated metrics"
                 ],
             }
         ],
@@ -157,6 +163,10 @@ Additional instructions:
   preparation recommendations in gap_analysis.
 - For acceptable fit, rewrite only the professional summary and selected
   responsibilities that improve relevance without changing facts.
+- Preserve the original achievements section unchanged.
+- Do not repeat, paraphrase or move achievement bullets into responsibilities.
+- Remove outcome-heavy responsibility bullets when the same result or metric
+  already exists in achievements for that experience.
 - Use exact experience IDs from the structured CV.
 - Return valid JSON only.
 """.strip()
@@ -174,6 +184,10 @@ Strict rules:
 - Do not return fit_assessment, gap_analysis, warnings or wrapper keys.
 - Do not invent experience, skills, employers, achievements or metrics.
 - Preserve sections that were not requested by omitting them.
+- Keep responsibilities and achievements strictly separate.
+- Responsibilities describe recurring scope, ownership, processes and duties.
+- Never repeat or paraphrase an existing achievement inside responsibilities.
+- Metrics already present in achievements must remain only in achievements.
 - Use exact experience IDs from the original CV.
 - Return one JSON object only.
 - Do not use Markdown fences.
@@ -258,13 +272,16 @@ Current validated optimization result:
 Return exactly these top-level keys:
 {json.dumps(expected_response, ensure_ascii=False, indent=2)}
 
+For experience_updates, keep recurring responsibilities separate from
+existing achievements. Do not repeat achievement metrics or outcomes inside
+responsibilities.
 Do not return any unrequested section.
 Return valid JSON only.
 """.strip()
 COMPANY_RESEARCH_SYSTEM_INSTRUCTION = f"""
 {BASE_SYSTEM_INSTRUCTION}
 
-You produce search-grounded company intelligence for interview preparation.
+You produce search-grounded company intelligence.
 
 Strict rules:
 - Use current public web information.
@@ -273,7 +290,11 @@ Strict rules:
 - Prefer official company sources for what the company does.
 - Use reputable news or financial sources for recent developments when available.
 - Treat employee sentiment as a public signal only, not a definitive rating.
-- If reliable information is unavailable, mark the field as limited.
+- If reliable information is unavailable, mark the report as limited.
+- Return every required top-level field exactly once.
+- Keep primary_industry, secondary_industries and business_model nested inside industry.
+- Company research must not generate interviewer questions or candidate questions.
+- interview_intelligence contains only talking_points and risks_to_prepare_for.
 - Return one JSON object only.
 - Do not use Markdown fences.
 - Do not add explanatory text outside the JSON object.
@@ -357,12 +378,6 @@ COMPANY_RESEARCH_RESPONSE_FORMAT = {
                 "how_to_use": "How the candidate may mention it.",
             }
         ],
-        "questions_to_ask": [
-            {
-                "question": "Question for the interviewer.",
-                "reason": "Why this is useful.",
-            }
-        ],
         "risks_to_prepare_for": [
             {
                 "risk": "Potential concern or uncertainty.",
@@ -388,6 +403,23 @@ COMPANY_RESEARCH_RESPONSE_FORMAT = {
 }
 
 
+COMPANY_RESEARCH_REQUIRED_TOP_LEVEL_KEYS = (
+    "research_status",
+    "confidence_level",
+    "short_description",
+    "industry",
+    "products_and_services",
+    "customers_and_market",
+    "competitors",
+    "recent_developments",
+    "public_company_information",
+    "employee_sentiment",
+    "interview_intelligence",
+    "sources",
+    "limitations",
+)
+
+
 def build_company_research_prompt(
     *,
     company_label: str,
@@ -402,8 +434,14 @@ def build_company_research_prompt(
         indent=2,
     )
 
+    required_keys = json.dumps(
+        COMPANY_RESEARCH_REQUIRED_TOP_LEVEL_KEYS,
+        ensure_ascii=False,
+        indent=2,
+    )
+
     return f"""
-Create a search-grounded company intelligence report for interview preparation.
+Create a search-grounded company intelligence report.
 
 Company:
 {company_label}
@@ -420,12 +458,20 @@ Generated at:
 Valid until:
 {valid_until}
 
+Required top-level keys:
+{required_keys}
+
 Required JSON structure:
 {response_format}
 
 Additional instructions:
+- Return all required top-level keys, even when some information is limited.
+- Do not add any other top-level keys.
+- industry must be one nested object.
+- primary_industry, secondary_industries and business_model are forbidden at the top level.
+- interview_intelligence must contain only talking_points and risks_to_prepare_for.
+- Do not generate likely interviewer questions or candidate questions in company research.
 - Do current public web research.
-- Focus on information useful for a job interview.
 - Include official sources where possible.
 - Include source URLs for factual claims.
 - If named customers are not public, use customer types and explain limitations.
@@ -434,91 +480,249 @@ Additional instructions:
 - Do not include generic filler.
 - Return valid JSON only.
 """.strip()
+
+
+def build_company_research_retry_prompt(
+    *,
+    company_label: str,
+    company_key: str,
+    country_code: str,
+    generated_at: str,
+    valid_until: str,
+    invalid_response: Mapping[str, Any] | str,
+    validation_reasons: list[str],
+) -> str:
+    response_format = json.dumps(
+        COMPANY_RESEARCH_RESPONSE_FORMAT,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    required_keys = json.dumps(
+        COMPANY_RESEARCH_REQUIRED_TOP_LEVEL_KEYS,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    if isinstance(invalid_response, Mapping):
+        invalid_text = json.dumps(
+            dict(invalid_response),
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        )
+    else:
+        invalid_text = str(
+            invalid_response
+        )
+
+    invalid_text = invalid_text[:12000]
+
+    reasons_text = json.dumps(
+        validation_reasons,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    return f"""
+The previous company research JSON was invalid. Correct it completely.
+
+Company:
+{company_label}
+
+Company key:
+{company_key}
+
+Country code:
+{country_code}
+
+Generated at:
+{generated_at}
+
+Valid until:
+{valid_until}
+
+Validation failures:
+{reasons_text}
+
+Invalid previous response:
+{invalid_text}
+
+Required top-level keys:
+{required_keys}
+
+Required JSON structure:
+{response_format}
+
+Repair rules:
+- Return a completely new JSON object, not a partial patch.
+- Return every required top-level key exactly once.
+- Do not add extra top-level keys.
+- Nest primary_industry, secondary_industries and business_model inside industry.
+- Do not return those three industry fields at the top level.
+- interview_intelligence contains only talking_points and risks_to_prepare_for.
+- Do not generate interviewer questions or candidate questions in company research.
+- Preserve only claims that can be supported by public sources.
+- Use limitations instead of guessing.
+- Return valid JSON only, without Markdown or explanation.
+""".strip()
+
+
 INTERVIEW_PREP_SYSTEM_INSTRUCTION = f"""
 {BASE_SYSTEM_INSTRUCTION}
 
-You generate personalized interview preparation from:
-- original CV
-- tailored CV
-- job advertisement
+You generate application-specific interview preparation from:
+- the exact job advertisement
+- the original CV
+- the tailored CV
+- fit and gap evidence
 - company research
 
 Strict rules:
-- Do not invent experience, tools, metrics, achievements or employers.
-- Use only evidence from the supplied CV, tailored CV, job ad and company research.
-- Generic interview questions are not allowed unless they are made specific.
-- Tell-me-about-yourself guidance belongs in positioning_guidance, not in the questions list.
-- Generate 10 to 15 interview questions.
-- Each question must explain why it matters.
-- Each question must include evidence to use.
-- Each question must include 1 to 3 suggested answer directions.
-- Highlight older, smaller or less recent experience that the candidate should refresh.
-- Warn where the candidate should avoid overstating experience.
+- Generate 10 to 15 likely questions the interviewer may ask.
+- Candidate questions to ask must remain a separate section.
+- Every interviewer question must be tied to at least one concrete anchor:
+  company, role requirement, named CV employer, named project, documented
+  responsibility, documented achievement, fit evidence or identified gap.
+- Do not use generic coaching templates.
+- Do not write phrases such as "use one concrete example", "open with your
+  strongest experience", "use only examples already present", or
+  "this tests whether the candidate can connect their background".
+- evidence_to_use must name the actual CV evidence to use. Prefer employer,
+  project, responsibility, achievement, metric or documented skill.
+- Each suggested_answer_direction must be usable, not abstract.
+- angle must state a specific response strategy for this exact question.
+- key_points must contain factual points from the supplied data.
+- example_focus must be a 3-to-5 sentence candidate-ready draft answer using
+  only supplied facts. It must not be a generic instruction.
+- Suggested answers may use first person, but may not invent facts.
+- Past-tense claims about actions, methods, tools, customers, motivation,
+  timelines or results must be directly supported by the supplied data.
+- Do not infer that a documented responsibility caused a documented metric
+  unless the supplied CV explicitly links them.
+- For stretch-fit gaps, keep the answer useful by combining documented
+  evidence with an honest future or conditional bridge such as "I would",
+  "I plan to", or "I would first learn". Do not rewrite that bridge as past
+  experience.
+- When a useful answer depends on a personal motivation or example that is
+  not supplied, provide a conservative draft and use preparation_note to tell
+  the candidate what must be confirmed or personalized before use.
+- Highlight older, smaller or less recent experience that should be refreshed.
+- Explicitly warn where the candidate must avoid overstating a gap.
+- Tell-me-about-yourself guidance belongs in positioning_guidance.
 - Return one JSON object only.
 - Do not use Markdown fences.
-- Do not add explanatory text outside the JSON object.
+- Do not add text outside the JSON object.
 """.strip()
 
 
 INTERVIEW_PREP_RESPONSE_FORMAT = {
-    "interview_prep_id": "application-id-or-generated-id",
+    "interview_prep_id": "application-id",
     "prep_status": "complete | limited",
     "positioning_guidance": {
-        "summary": "How the candidate should position themselves for this specific role.",
+        "summary": (
+            "Specific positioning for this company and role."
+        ),
         "focus_points": [
-            "Main experience or strength to emphasize."
+            (
+                "Concrete CV experience, employer, project, "
+                "achievement or skill to emphasize."
+            )
         ],
         "avoid_overstating": [
-            "Area where the candidate should be careful or precise."
+            (
+                "Specific gap or risk that must be discussed "
+                "carefully."
+            )
         ],
     },
     "questions": [
         {
             "question_id": "q001",
-            "category": "cv_experience | job_requirement | company_context | gap_or_risk | behavioral | technical_or_domain | motivation",
-            "question": "Personalized interview question.",
-            "why_this_matters": "Why this question is likely or useful for this role.",
+            "category": (
+                "cv_experience | job_requirement | "
+                "company_context | gap_or_risk | behavioral | "
+                "technical_or_domain | motivation"
+            ),
+            "question": (
+                "Likely interviewer question specific to the "
+                "application."
+            ),
+            "why_this_matters": (
+                "Concrete reason based on the role, company, "
+                "fit or gap."
+            ),
             "evidence_to_use": [
-                "Relevant CV, tailored CV, company research or job-ad evidence."
+                (
+                    "Named CV employer, project, responsibility, "
+                    "achievement, metric or documented skill."
+                )
             ],
             "suggested_answer_directions": [
                 {
-                    "angle": "Possible answer angle.",
+                    "angle": (
+                        "Specific response strategy for this "
+                        "question."
+                    ),
                     "key_points": [
-                        "Point the candidate can mention."
+                        (
+                            "Factual point copied or faithfully "
+                            "paraphrased from supplied data."
+                        )
                     ],
-                    "example_focus": "How to frame the answer without inventing facts.",
+                    "example_focus": (
+                        "A 3-to-5 sentence candidate-ready draft "
+                        "answer using supplied facts only."
+                    ),
                 }
             ],
-            "preparation_note": "What the candidate should review before the interview.",
+            "preparation_note": (
+                "Specific item to verify or refresh before the "
+                "interview."
+            ),
             "risk_level": "low | medium | high",
         }
     ],
     "experience_checkpoints": [
         {
-            "emphasized_area": "Skill or experience emphasized in the tailored CV.",
-            "supporting_cv_evidence": "Where this is supported in the CV.",
+            "emphasized_area": (
+                "Experience emphasized for this role."
+            ),
+            "supporting_cv_evidence": (
+                "Exact CV evidence supporting it."
+            ),
             "likely_follow_up_questions": [
-                "Possible follow-up question."
+                "Specific likely follow-up question."
             ],
-            "preparation_needed": "What the candidate should refresh or prepare.",
+            "preparation_needed": (
+                "Specific detail the candidate should refresh."
+            ),
         }
     ],
     "company_specific_talking_points": [
         {
-            "topic": "Company-specific topic.",
-            "why_relevant": "Why it may matter in the interview.",
-            "how_to_use": "How the candidate may mention it.",
+            "topic": "Verified company-specific topic.",
+            "why_relevant": (
+                "Why it matters for this role."
+            ),
+            "how_to_use": (
+                "How to mention it naturally."
+            ),
         }
     ],
     "candidate_questions_to_ask": [
         {
-            "question": "Question the candidate can ask the interviewer.",
-            "reason": "Why this is useful.",
+            "question": (
+                "Question the candidate can ask."
+            ),
+            "reason": (
+                "Why this question is useful for this "
+                "specific application."
+            ),
         }
     ],
     "limitations": [
-        "Important limitation, missing data or uncertainty."
+        "Missing context or uncertainty."
     ],
 }
 
@@ -538,29 +742,8 @@ def build_interview_prep_prompt(
         indent=2,
     )
 
-    original_cv_json = json.dumps(
-        original_cv,
-        ensure_ascii=False,
-        indent=2,
-        default=str,
-    )
-
-    tailored_cv_json = json.dumps(
-        tailored_cv,
-        ensure_ascii=False,
-        indent=2,
-        default=str,
-    )
-
-    company_research_json = json.dumps(
-        company_research,
-        ensure_ascii=False,
-        indent=2,
-        default=str,
-    )
-
     return f"""
-Generate personalized interview preparation.
+Generate deeply personalized interview preparation for one application.
 
 Application ID:
 {application_id}
@@ -568,27 +751,39 @@ Application ID:
 Generated at:
 {generated_at}
 
-Job advertisement:
+Exact job advertisement:
 {job_ad}
 
-Original CV:
-{original_cv_json}
+Original CV - factual source of truth:
+{json.dumps(original_cv, ensure_ascii=False, indent=2, default=str)}
 
 Tailored CV:
-{tailored_cv_json}
+{json.dumps(tailored_cv, ensure_ascii=False, indent=2, default=str)}
 
 Company research:
-{company_research_json}
+{json.dumps(company_research, ensure_ascii=False, indent=2, default=str)}
 
 Required JSON structure:
 {response_format}
 
-Additional instructions:
-- Generate 10 to 15 personalized questions.
-- Do not return generic questions.
+Quality requirements:
+- Produce 10 to 15 likely interviewer questions.
+- At least 8 questions must mention or clearly depend on a concrete company,
+  role, requirement, employer, project, achievement, metric, skill or gap.
+- Every evidence_to_use item must identify the real evidence, not tell the
+  candidate to find an example later.
+- Every question needs at least one candidate-ready answer draft in
+  example_focus.
+- Keep stretch-fit answers practical: use verified past evidence, then state
+  unsupported tactics or gap-closing actions in future or conditional form.
+- Do not present inferred account audits, CRM routines, event follow-up
+  timings, pricing models, personal passions or causal links as past facts
+  unless they appear in the supplied data.
+- Use preparation_note to identify any detail the candidate must confirm,
+  personalize or replace before speaking.
+- Use different evidence across questions where possible.
+- Separate likely interviewer questions from candidate questions to ask.
 - Do not invent facts.
-- Every answer direction must be supported by the supplied data.
-- Include prep notes for emphasized experience that may need refresh.
-- Include warnings where the candidate should avoid overstating.
 - Return valid JSON only.
 """.strip()
+

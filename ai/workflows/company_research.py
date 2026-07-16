@@ -23,6 +23,7 @@ from ai.company_research_validation import (
 from ai.prompts import (
     COMPANY_RESEARCH_SYSTEM_INSTRUCTION,
     build_company_research_prompt,
+    build_company_research_retry_prompt,
 )
 from config import settings
 from logger import logger
@@ -32,6 +33,8 @@ GroundedRequestFunction = Callable[
     ...,
     str,
 ]
+
+MAX_SCHEMA_ATTEMPTS = 2
 
 
 class CompanyResearchWorkflowError(
@@ -116,6 +119,62 @@ def _send_grounded_gemini_request(
     return text
 
 
+def _clean_response(
+    raw_response: str,
+) -> dict[str, Any]:
+    cleaned_response = clean_ai_json_response(
+        raw_response
+    )
+
+    if not isinstance(
+        cleaned_response,
+        Mapping,
+    ):
+        raise CompanyResearchValidationError(
+            [
+                "Company research response must be a JSON object."
+            ]
+        )
+
+    return dict(cleaned_response)
+
+
+def _add_workflow_metadata(
+    response_data: Mapping[str, Any],
+    *,
+    company_key: str,
+    display_name: str,
+    country_code: str,
+    generated_at: datetime,
+    valid_until: datetime,
+) -> dict[str, Any]:
+    completed_data = dict(response_data)
+
+    completed_data["company_key"] = company_key
+    completed_data["display_name"] = display_name
+    completed_data["country_code"] = country_code
+    completed_data["generated_at"] = (
+        generated_at.isoformat()
+    )
+    completed_data["valid_until"] = (
+        valid_until.isoformat()
+    )
+
+    return completed_data
+
+
+def _validation_reasons(
+    error: Exception,
+) -> list[str]:
+    if isinstance(
+        error,
+        CompanyResearchValidationError,
+    ):
+        return list(error.reasons)
+
+    return [str(error)]
+
+
 def generate_company_research(
     *,
     company_label: str,
@@ -149,52 +208,92 @@ def generate_company_research(
             valid_until=valid_until.isoformat(),
         )
 
-        raw_response = request_function(
-            prompt,
-            system_instruction=(
-                COMPANY_RESEARCH_SYSTEM_INSTRUCTION
-            ),
-        )
-
-        cleaned_response = clean_ai_json_response(
-            raw_response
-        )
-
-        if not isinstance(
-            cleaned_response,
-            Mapping,
+        for attempt in range(
+            1,
+            MAX_SCHEMA_ATTEMPTS + 1,
         ):
-            raise CompanyResearchValidationError(
-                [
-                    "Company research response must be a JSON object."
-                ]
-            )
+            raw_response = ""
+            cleaned_data: dict[str, Any] | None = None
 
-        response_data: dict[str, Any] = dict(
-            cleaned_response
-        )
+            try:
+                logger.info(
+                    "Company research AI attempt: company_key=%s attempt=%s/%s",
+                    company_key,
+                    attempt,
+                    MAX_SCHEMA_ATTEMPTS,
+                )
 
-        response_data["company_key"] = company_key
-        response_data["display_name"] = display_name
-        response_data["country_code"] = country_code
-        response_data["generated_at"] = (
-            generated_at.isoformat()
-        )
-        response_data["valid_until"] = (
-            valid_until.isoformat()
-        )
+                raw_response = request_function(
+                    prompt,
+                    system_instruction=(
+                        COMPANY_RESEARCH_SYSTEM_INSTRUCTION
+                    ),
+                )
 
-        report = validate_company_research_response(
-            response_data
-        )
+                cleaned_data = _clean_response(
+                    raw_response
+                )
 
-        logger.info(
-            "Company research workflow completed: company_key=%s status=%s",
-            company_key,
-            report.research_status,
-        )
+                response_data = _add_workflow_metadata(
+                    cleaned_data,
+                    company_key=company_key,
+                    display_name=display_name,
+                    country_code=country_code,
+                    generated_at=generated_at,
+                    valid_until=valid_until,
+                )
 
-        return report
+                report = validate_company_research_response(
+                    response_data
+                )
+
+                logger.info(
+                    "Company research workflow completed: "
+                    "company_key=%s status=%s attempts=%s",
+                    company_key,
+                    report.research_status,
+                    attempt,
+                )
+
+                return report
+
+            except (
+                CleanerError,
+                CompanyResearchValidationError,
+            ) as error:
+                reasons = _validation_reasons(
+                    error
+                )
+
+                logger.warning(
+                    "Company research response rejected: "
+                    "company_key=%s attempt=%s/%s reasons=%s",
+                    company_key,
+                    attempt,
+                    MAX_SCHEMA_ATTEMPTS,
+                    " | ".join(reasons),
+                )
+
+                if attempt >= MAX_SCHEMA_ATTEMPTS:
+                    raise
+
+                prompt = build_company_research_retry_prompt(
+                    company_label=display_name,
+                    company_key=company_key,
+                    country_code=country_code,
+                    generated_at=generated_at.isoformat(),
+                    valid_until=valid_until.isoformat(),
+                    invalid_response=(
+                        cleaned_data
+                        if cleaned_data is not None
+                        else raw_response
+                    ),
+                    validation_reasons=reasons,
+                )
+
+        raise CompanyResearchWorkflowError(
+            "Company research schema retry loop ended unexpectedly."
+        )
 
     except (
         CleanerError,
@@ -215,7 +314,8 @@ def generate_company_research(
 
     except Exception as error:
         logger.exception(
-            "Unexpected company research workflow failure: company_key=%s error_type=%s",
+            "Unexpected company research workflow failure: "
+            "company_key=%s error_type=%s",
             company_key,
             type(error).__name__,
         )
@@ -223,3 +323,11 @@ def generate_company_research(
         raise CompanyResearchWorkflowError(
             "Company research failed unexpectedly."
         ) from error
+
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import observe_function
+
+generate_company_research = observe_function(
+    "company_research_ai_workflow"
+)(generate_company_research)

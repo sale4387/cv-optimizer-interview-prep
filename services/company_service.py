@@ -27,9 +27,9 @@ from firebase import (
 from logger import logger
 
 
-COMPANY_RESEARCH_SCHEMA_VERSION = "1.0"
+COMPANY_RESEARCH_SCHEMA_VERSION = "2.0"
 COMPANY_RESEARCH_PROMPT_VERSION = (
-    "task-012-company-research-v1"
+    "task-015-fix-2-company-research-v2"
 )
 
 
@@ -74,6 +74,21 @@ def _build_saved_company_research(
 def _is_reusable(
     saved: SavedCompanyResearch,
 ) -> bool:
+    if (
+        saved.schema_version
+        != COMPANY_RESEARCH_SCHEMA_VERSION
+        or saved.prompt_version
+        != COMPANY_RESEARCH_PROMPT_VERSION
+    ):
+        logger.info(
+            "Stored company research version mismatch: "
+            "company_key=%s stored_schema=%s stored_prompt=%s",
+            saved.company_key,
+            saved.schema_version,
+            saved.prompt_version,
+        )
+        return False
+
     now = datetime.now(timezone.utc)
 
     valid_until = saved.company_research.valid_until
@@ -112,16 +127,29 @@ def get_or_create_company_research(
 
             if _is_reusable(saved):
                 logger.info(
-                    "Company research cache hit: company_key=%s",
+                    "Stored company research reused: company_key=%s",
                     company_key,
+                )
+
+                log_metric(
+                    event="company_research_storage",
+                    status="found",
+                    company_key=company_key,
                 )
 
                 return saved
 
             logger.info(
-                "Company research expired and will be refreshed: company_key=%s",
+                "Stored company research is expired or outdated "
+                "and will be refreshed: company_key=%s",
                 company_key,
             )
+
+        log_metric(
+            event="company_research_storage",
+            status="missing",
+            company_key=company_key,
+        )
 
         report = generate_company_research(
             company_label=company_label,
@@ -137,12 +165,8 @@ def get_or_create_company_research(
             company_research=report.model_dump(
                 mode="python"
             ),
-            schema_version=(
-                COMPANY_RESEARCH_SCHEMA_VERSION
-            ),
-            prompt_version=(
-                COMPANY_RESEARCH_PROMPT_VERSION
-            ),
+            schema_version=COMPANY_RESEARCH_SCHEMA_VERSION,
+            prompt_version=COMPANY_RESEARCH_PROMPT_VERSION,
             model_version=settings.gemini_model,
         )
 
@@ -166,18 +190,27 @@ def get_or_create_company_research(
 
         return saved
 
-    except (
-        CompanyResearchError,
-        CompanyResearchWorkflowError,
-        ValidationError,
-        ValueError,
-        TypeError,
-    ):
+    except CompanyResearchError:
         logger.exception(
             "Company research service failed: company_key=%s",
             company_key,
         )
         raise
+
+    except (
+        CompanyResearchWorkflowError,
+        ValidationError,
+        ValueError,
+        TypeError,
+    ) as error:
+        logger.exception(
+            "Company research service failed: company_key=%s",
+            company_key,
+        )
+
+        raise CompanyResearchError(
+            "Company & Market Intelligence is currently unavailable."
+        ) from error
 
     except Exception as error:
         logger.exception(
@@ -186,7 +219,7 @@ def get_or_create_company_research(
         )
 
         raise CompanyResearchError(
-            "Company research is currently unavailable."
+            "Company & Market Intelligence is currently unavailable."
         ) from error
 
 
@@ -270,3 +303,14 @@ def list_saved_company_research(
         raise CompanyResearchError(
             "Company reports are currently unavailable."
         ) from error
+
+# TASK-015 FIX-5 OBSERVABILITY
+from observability import log_metric, observe_function
+
+get_or_create_company_research = observe_function(
+    "company_research_service"
+)(get_or_create_company_research)
+
+load_saved_company_research = observe_function(
+    "company_research_load"
+)(load_saved_company_research)

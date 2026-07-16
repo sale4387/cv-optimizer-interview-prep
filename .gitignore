@@ -10,3 +10,5 @@ secrets/
 test_cases_results_log.txt
 tasks_working_doc.txt
 job_add_test.txt
+test_screenshots/
+project_snapshot_safe.md

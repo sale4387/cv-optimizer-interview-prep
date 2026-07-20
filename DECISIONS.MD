@@ -451,107 +451,74 @@ Review this decision if:
 
 ### Status
 
-Accepted
+Replaced by DECISION-016
 
 ### Context
 
-The application could be built entirely inside Streamlit, with the UI directly calling the AI workflow.
+The application was initially planned as a Streamlit frontend with FastAPI as the required backend and AI-workflow entry point.
 
-A decision was required whether to keep the architecture minimal or introduce a separate FastAPI backend.
+During implementation, the business logic was separated into a service layer that could be called directly from Streamlit or exposed through FastAPI.
+
+The final V1 deployment required the simplest reliable path for a portfolio demo.
 
 ### Options Considered
 
-1. **Streamlit-only application**
+1. **Keep FastAPI as a required runtime service**
 
    Pros:
-   - simplest architecture
-   - easier local development
-   - fewer services
-   - simpler deployment
+   - explicit HTTP contract
+   - clear frontend/backend separation
+   - easier reuse by external clients
 
    Cons:
-   - UI and backend logic become more tightly coupled
-   - harder to reuse the workflow from another client
-   - validation, authentication and rate limiting remain inside the UI application
+   - additional container and network hop
+   - more deployment complexity
+   - unnecessary for the current single Python application
 
-2. **Streamlit frontend with FastAPI backend**
+2. **Let Streamlit call the service layer directly while retaining FastAPI**
 
    Pros:
-   - clear separation of frontend and backend responsibilities
-   - defined API request and response models
-   - easier reuse by another frontend, scheduler or service
-   - better location for validation, logging, authentication and rate limiting
-   - stronger architecture demonstration in the portfolio
+   - simpler V1 deployment
+   - business logic remains outside the UI
+   - FastAPI remains available for testing and future integrations
+   - avoids duplicated orchestration logic
 
    Cons:
-   - additional service and configuration
-   - more complex deployment
-   - more possible failure points
-   - HTTP communication must be handled between frontend and backend
+   - FastAPI is not part of the primary deployed request path
+   - Streamlit remains coupled to the Python service layer
 
 ### Decision
 
-The application will use:
+The original decision to require FastAPI in the primary V1 flow was replaced by DECISION-016.
 
-- Streamlit as the frontend
-- FastAPI as the backend and AI workflow entry point
-
-Streamlit will not call the AI provider directly.
+FastAPI remains in the repository, but the final Streamlit workflow calls the service layer directly.
 
 ### Reasoning
 
-FastAPI provides:
+The service layer already provides the required separation of concerns.
 
-- separation of concerns
-- reusable API contracts
-- centralized validation
-- centralized logging
-- easier future integration
-- a clear path toward using the workflow as an independent service
-
-Portfolio value is an additional benefit, but the main reason is architectural separation and future reuse.
+Requiring an additional internal HTTP service would add deployment complexity without improving the current portfolio workflow.
 
 ### Tradeoffs
 
-The architecture becomes more complex than a Streamlit-only application.
+The deployed V1 does not demonstrate Streamlit-to-FastAPI HTTP communication.
 
-The project requires:
-
-- two application layers
-- HTTP communication
-- additional configuration
-- separate error handling
-- more deployment work
-
-This complexity is accepted because the backend has a clear independent responsibility.
+FastAPI remains available for future external clients and API-specific testing.
 
 ### Consequences
 
-FastAPI becomes the main entry point for the AI workflow.
+The V1 Docker deployment does not start a separate FastAPI container.
 
-The backend is responsible for:
-
-- request validation
-- prompt construction
-- AI calls
-- response cleaning
-- output validation
-- retries
-- logging
-- rate limiting
-- structured error responses
-
-Streamlit remains responsible for:
-
-- user input
-- loading state
-- displaying validated results
-- revision controls
-- CV rendering
+Streamlit, FastAPI and tests can reuse the same service-layer business logic.
 
 ### Review Later
 
-Review this decision if the separate backend creates significant deployment complexity without providing meaningful separation or reuse.
+Review this decision when:
+
+- an external frontend is introduced
+- another service needs to call the workflow
+- the API becomes a public product interface
+- independent frontend and backend scaling is justified
 
 ---
 
@@ -1136,7 +1103,7 @@ The project owner remains accountable for the final product.
 Review this decision if the project introduces a technical area that provides meaningful new hands-on development value or if AI-generated implementation cannot be reviewed reliably.
 
 ---
-## DECISION-010 — Separate Company Research, Main Application and Targeted Revision Workflows
+## DECISION-010 — Separate CV Optimization, Company Research, Interview Prep and Targeted Revision Workflows
 
 ### Status
 
@@ -1151,251 +1118,231 @@ The application needs to produce several connected outputs:
 - gap analysis
 - company research
 - interview preparation
+- targeted revisions
 
-Company research can be reused across multiple applications to the same company, while the remaining outputs depend on the specific:
+These outputs do not have the same lifecycle.
 
-- CV profile
-- job ad
-- role
-- application context
+Company research can be reused across applications to the same company.
 
-A single large AI call would repeat company research and increase response size, cost and validation risk.
+Interview Prep is only needed after the user accepts the CV.
 
-The workflow also needs section-level revisions without regenerating accepted content.
+Targeted revisions should affect only selected content.
+
+A single large AI call would create a large response contract, repeat reusable work and make failures harder to isolate.
 
 ### Options Considered
 
-1. **Use one AI call for the entire workflow**
+1. **Use one AI call for the complete workflow**
 
    Pros:
    - one request
-   - one initial response
    - shared context
 
    Cons:
-   - large and complex output
-   - company research is repeated unnecessarily
-   - failure affects every output
-   - difficult to cache or reuse company data
+   - large and fragile output
+   - repeated company research
+   - Interview Prep generated before it is needed
+   - one failure affects every output
+   - difficult to validate and retry safely
 
-2. **Use a separate AI call for every output section**
+2. **Use a separate AI call for every small output section**
 
    Pros:
-   - smaller prompts and schemas
-   - failures affect fewer sections
-   - easier section-specific testing
+   - small prompts and schemas
+   - isolated failures
 
    Cons:
-   - repeated context
+   - excessive repeated context
    - higher API usage
-   - longer processing time
    - possible inconsistency between outputs
 
-3. **Use a conditional company research workflow, one main application workflow and targeted revision calls**
+3. **Use four focused workflows**
 
    Pros:
-   - company research can be reused
-   - the main result remains internally consistent
-   - API calls are avoided when stored data is available
-   - revisions only affect the selected section
-   - response contracts remain manageable
+   - reusable Company Research
+   - CV Optimization remains focused
+   - Interview Prep runs only on demand
+   - Targeted Revision changes only selected content
+   - independent validation, retries and failure handling
 
    Cons:
-   - multiple workflow types must be implemented
-   - stored research must be validated
-   - orchestration becomes more complex
-   - several response models are required
+   - more orchestration
+   - several response models and statuses
+   - more detailed persistence logic
 
 ### Decision
 
-The MVP will use three AI workflows:
+The final V1 uses four AI workflows:
 
-1. **Conditional Company Research Workflow**
+1. **CV Optimization**
+   - evaluates fit
+   - generates the tailored CV proposal and gap analysis
+   - stops tailoring for poor-fit roles
+
+2. **Company Research**
    - checks Firestore first
-   - calls Gemini search grounding only when valid reusable research is unavailable
-   - validates and stores company research
+   - reuses valid fresh research
+   - generates and stores new research when required
 
-2. **Main Fit, CV and Interview Workflow**
-   - uses the CV profile, job ad and prepared company research
-   - generates fit assessment, tailored CV, gap analysis and interview preparation
-   - stops CV tailoring when fit is poor
+3. **Interview Prep**
+   - runs on demand after CV acceptance
+   - uses the original CV, accepted CV, job ad and available company context
 
-3. **Targeted Revision Workflow**
-   - runs only when the user requests a change
-   - revises only the selected section
+4. **Targeted Revision**
+   - runs only for selected CV content
+   - must not regenerate or modify unrelated content
 
 ### Reasoning
 
-This structure separates reusable company knowledge from application-specific output.
+This structure gives each workflow a clear responsibility and lifecycle.
 
-It:
+It improves:
 
-- reduces unnecessary AI calls
-- supports Firestore persistence
-- limits the size of the main response
-- improves validation clarity
-- preserves consistency between fit, CV and interview preparation
-- supports section-level user control
+- failure isolation
+- validation clarity
+- reuse
+- user control
+- API-cost control
+- testability
+
+A failed supporting workflow does not remove an already valid CV result.
 
 ### Tradeoffs
 
-The backend must orchestrate three workflow types.
+The service layer must coordinate multiple workflows and statuses.
 
 The project requires:
 
-- multiple Pydantic response models
 - separate prompts
-- separate validation rules
-- Firestore lookup logic
-- version compatibility checks
-- more detailed failure handling
-
-The additional complexity is accepted because it creates meaningful reuse and reliability value.
+- separate schemas
+- workflow-specific retries
+- additional persistence fields
+- more detailed tests
 
 ### Consequences
 
-The system requires:
+Company Research is stored separately in the `companies` collection.
 
-- a company research request and result model
-- a main application request and result model
-- revision request and result models
-- separate validation functions
-- company-research cache-hit and cache-miss handling
-- main workflow integration with stored research
-- targeted section replacement logic
+Interview Prep is stored inside the related application record.
 
-Company research is no longer generated inside every main application call.
+The application can remain valid even if Company Research or Interview Prep fails.
+
+V1 does not include a manual Company Research retry button.
 
 ### Review Later
 
 Review this decision if:
 
-- company research is too unreliable to reuse
-- the main application response remains too large
-- interview preparation requires a separate model or workflow
-- splitting the main workflow improves quality without excessive inconsistency
-- provider capabilities make a different orchestration pattern more reliable
+- orchestration becomes difficult to maintain
+- one workflow should move to background processing
+- Company Research requires a different provider
+- agentic workflows are introduced in V3
 
 ---
-## DECISION-011 — User Review and Section-Level Control
+
+## DECISION-011 — CV-First Inline Review and Section-Level Control
 
 ### Status
 
-Accepted
-
-### Review Note
-
-This decision remains accepted, but will be expanded by DECISION-015 toward a CV-first interface with inline review of AI-suggested changes.
+Accepted and Implemented
 
 ### Context
 
-AI-generated CV changes and interview preparation material may be structurally valid but still fail to match:
+AI-generated CV changes may be structurally valid but still fail to match:
 
 - the user’s preferred wording
 - the user’s tone
 - the user’s interpretation of their experience
 - the level of emphasis the user considers accurate
 
-The user must remain responsible for deciding which version is used.
+The user must remain responsible for deciding which version becomes final.
 
 ### Options Considered
 
-1. **Automatically apply and export all AI-generated changes**
+1. **Automatically apply all AI-generated changes**
 
    Pros:
    - fastest workflow
    - minimal user effort
 
    Cons:
-   - user may not notice inaccurate wording
-   - removes meaningful human control
-   - increases the risk of misleading content
+   - weak human control
+   - inaccurate wording may go unnoticed
+   - higher risk of misleading content
 
-2. **Require approval for every individual field**
+2. **Require approval for every field without showing context**
 
    Pros:
-   - maximum user control
-   - detailed review
+   - detailed control
 
    Cons:
-   - slow and complicated UX
-   - excessive user effort
-   - too many actions for minor changes
+   - slow UX
+   - difficult comparison with the original CV
 
-3. **Show the complete result and allow section-level revisions**
+3. **Use a CV-first inline review**
 
    Pros:
+   - original and suggested content remain connected
+   - transparent AI changes
+   - targeted revisions
    - balanced human control
-   - simpler review process
-   - accepted content remains unchanged
-   - specific problems can be corrected
 
    Cons:
-   - user must still review the complete result
-   - multiple revision calls may be required
+   - more UI and state-management complexity
+   - review decisions must be persisted and validated
 
 ### Decision
 
-The application will show the complete validated result before export.
+The final V1 uses a CV-first inline review.
 
-The user may request a revision of a specific section by:
+For supported content, the user may choose:
 
-- selecting the section
-- entering a comment
-- submitting a follow-up request
+- `accepted_suggestion`
+- `kept_original`
+- `revision_requested`
 
-The AI must only revise the selected section.
+A requested revision runs only for the selected content.
 
-The application will not silently modify the final CV after it has been shown to the user.
+An empty AI bullet suggestion is displayed as `Remove this bullet`; accepting it removes that bullet.
+
+The user must save all decisions before `Accept CV` becomes available.
 
 ### Reasoning
 
-This approach keeps the user in control without creating an unnecessarily complicated approval workflow.
+This approach keeps the user in control and makes AI changes visible before export.
 
-It allows the user to:
-
-- verify accuracy
-- correct misleading wording
-- change tone
-- adjust emphasis
-- improve interview questions or answers
-- keep sections that are already satisfactory
+It supports the product principle that AI should improve the presentation of real experience without silently replacing the user’s judgment.
 
 ### Tradeoffs
 
-The user must invest time in reviewing the output.
+The user must review the output.
 
-Some users may approve content without reading it carefully.
+The implementation requires:
 
-Other users may require several revision calls.
-
-The application cannot guarantee that every user-approved statement is accurate.
+- granular review state
+- merge logic
+- targeted revision validation
+- acceptance guards
+- persistence of decisions
 
 ### Consequences
 
-The frontend requires:
+`Save all decisions` resolves and merges the review result.
 
-- clearly separated result sections
-- revision controls
-- comment input
-- section replacement logic
-- distinction between the original and latest version
+`Accept CV` remains blocked until the review is complete.
 
-The backend requires:
-
-- revision request validation
-- section-specific prompts
-- section-specific output validation
-- protection against changes outside the selected section
+PDF generation and Interview Prep are available only after the CV is accepted.
 
 ### Review Later
 
 Review this decision if:
 
-- users require accept/reject controls for individual changes
-- revision history becomes necessary
-- users need side-by-side version comparison
-- automatic approval becomes useful for low-risk cosmetic changes
+- users need full visual diff history
+- undo/version history becomes necessary
+- more editable CV fields are introduced
+- batch approval becomes useful
+
+---
 
 ## DECISION-012 — Complete the CV Optimization Workflow Before Adding Supporting Features
 
@@ -1627,9 +1574,9 @@ Stores one structured result per processed application, including:
 
 A complete application result may only be reused when the relevant inputs and version metadata are compatible.
 
-Firestore access will only occur through the FastAPI backend.
+Firestore access will occur through the storage and service layers.
 
-The Streamlit frontend will not access Firestore directly.
+The final Streamlit flow calls the service layer directly; FastAPI can reuse the same services when the API entry point is used.
 
 The MVP will not include:
 
@@ -1680,7 +1627,7 @@ This limitation is accepted for the controlled MVP.
 
 The architecture requires:
 
-- a Firestore client in the backend
+- Firestore storage helpers used by the service layer
 - `companies` and `applications` collections
 - normalized company keys
 - application matching logic
@@ -1930,6 +1877,148 @@ Review this decision after the first inline review version is implemented and te
 ---
 
 
+## DECISION-016 — Streamlit Calls the Service Layer Directly in V1
+
+### Status
+
+Accepted
+
+### Context
+
+The final application already separates UI, business orchestration, AI workflows, validation and persistence.
+
+A deployment decision was required whether Streamlit should call FastAPI over HTTP or call the same service layer directly.
+
+### Decision
+
+The final V1 Streamlit application calls the service layer directly.
+
+FastAPI remains available as an optional API entry point, but it is not required by the primary deployed workflow.
+
+### Reasoning
+
+This keeps the architecture modular while avoiding an unnecessary internal network hop and separate API container.
+
+### Tradeoffs
+
+The primary demo does not exercise the FastAPI request path.
+
+### Consequences
+
+The service layer is the shared business-logic boundary.
+
+The Docker Compose deployment starts Streamlit and Nginx, but not FastAPI.
+
+### Review Later
+
+Review when an external client or independently deployed backend is required.
+
+---
+
+## DECISION-017 — Docker Compose Home-Server Deployment with Nginx
+
+### Status
+
+Accepted
+
+### Context
+
+The V1 needed a repeatable portfolio deployment without introducing public-cloud cost or advanced infrastructure.
+
+The application also needed bookmarkable candidate routes and reliable Streamlit WebSocket proxying.
+
+### Options Considered
+
+1. **Run Streamlit directly on the server**
+2. **Deploy to a public cloud platform**
+3. **Use Docker Compose with Streamlit and Nginx on the home server**
+
+### Decision
+
+V1 uses Docker Compose on a user-owned Ubuntu home-server laptop.
+
+The deployment contains:
+
+- `cv-app` for Streamlit
+- `cv-proxy` for Nginx
+
+Nginx provides:
+
+- `/sale`
+- `/svetlana`
+- WebSocket proxying
+- one external host port
+
+Firebase credentials are mounted read-only and are not copied into the image.
+
+### Reasoning
+
+This approach is:
+
+- repeatable
+- low cost
+- easy to demonstrate
+- simple enough for the MVP
+- reusable on the existing server
+
+### Tradeoffs
+
+The demo is primarily available on the local network.
+
+Public hosting, HTTPS and domain configuration remain outside V1.
+
+### Consequences
+
+The Docker image includes the Unicode font package required for PDF rendering.
+
+The deployment supports health checks, restart behavior, visible logs and Firestore persistence across container restarts.
+
+### Review Later
+
+Review when a public portfolio demo, domain or HTTPS is required.
+
+---
+
+## DECISION-018 — Defer Manual Company Research Retry to V2
+
+### Status
+
+Accepted
+
+### Context
+
+Company Research may fail independently while CV Optimization succeeds.
+
+V1 preserves the valid CV but does not expose a button to rerun only Company Research.
+
+### Decision
+
+The missing manual Company Research retry is documented as a known V1 limitation and deferred to V2.
+
+### Reasoning
+
+The core V1 workflow, Docker deployment and portfolio demonstration are complete.
+
+Adding the retry would require another UI, service, persistence and test change immediately before project closure.
+
+### Tradeoffs
+
+A user cannot manually recover Company Research from the UI after a failed attempt.
+
+The CV remains usable, and Interview Prep can still run with less company-specific context.
+
+### Consequences
+
+Documentation must not claim that manual Company Research retry exists.
+
+V2 should add a retry action that reruns only Company Research without repeating CV Optimization.
+
+### Review Later
+
+Review at the start of V2.
+
+---
+
 # Rejected Decisions
 
 No standalone rejected decisions are currently recorded.
@@ -1940,28 +2029,33 @@ Rejected alternatives are documented inside each accepted decision.
 
 # Replaced Decisions
 
+DECISION-004 was replaced by DECISION-016 after the final service-layer architecture made a mandatory FastAPI runtime unnecessary.
+
 DECISION-005 was replaced by DECISION-014 after browser Print / Save as PDF produced inconsistent Streamlit layout and page-break results.
 
-DECISION-003 and DECISION-010 were updated before implementation to reflect the final MVP input, persistence and AI workflow design.
+DECISION-003, DECISION-010, DECISION-011 and DECISION-013 were updated to reflect the final implemented V1 behavior.
 
 ---
 
 # Decision Log
 
-| ID           | Title                                                                       | Status   | Date | Notes                |
-| ------------ | --------------------------------------------------------------------------- | -------- | ---- | -------------------- |
-| DECISION-001 | Static Stored CV Profile for MVP                                            | Accepted |      | MVP constraint       |
-| DECISION-002 | Pasted Job Ad Text Instead of Job Ad URL                                    | Accepted |      | MVP constraint       |
-| DECISION-003 | Structured Company Identifier Without Company URL                           | Accepted |      | Input design         |
-| DECISION-004 | FastAPI Backend Instead of Streamlit-Only Application                       | Accepted |      | Architecture         |
-| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation                  | Replaced |      | Replaced by DECISION-014 |
-| DECISION-006 | No AI Provider Fallback in MVP                                              | Accepted |      | Gemini only          |
-| DECISION-007 | AI Output Must Be JSON Validated Before Rendering                           | Accepted |      | Reliability          |
-| DECISION-008 | Poor Fit Stops the Tailoring Workflow                                       | Accepted |      | No MVP override      |
-| DECISION-009 | AI-Assisted Development Workflow and Product Ownership Focus                | Accepted |      | Portfolio strategy   |
-| DECISION-010 | Separate Company Research, Main Application and Targeted Revision Workflows  | Accepted |      | AI workflow          |
-| DECISION-011 | User Review and Section-Level Control                                       | Accepted |      | Human-in-the-loop UX |
-| DECISION-012 | Complete the CV Optimization Workflow Before Adding Supporting Features     | Accepted |      | Delivery sequence    |
-| DECISION-013 | Firestore Persistence for Company Research and Application Results           | Accepted |      | Persistence          |
-| DECISION-014 | Direct PDF Generation for Accepted CVs                                      | Accepted |      | Export               |
-| DECISION-015 | CV-First Interface and Inline Change Review Direction                       | Accepted |      | UX direction         |
+| ID           | Title                                                                              | Status                   | Date | Notes                         |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------------ | ---- | ----------------------------- |
+| DECISION-001 | Static Stored CV Profile for MVP                                                   | Accepted                 |      | MVP constraint                |
+| DECISION-002 | Pasted Job Ad Text Instead of Job Ad URL                                           | Accepted                 |      | MVP constraint                |
+| DECISION-003 | Structured Company Identifier Without Company URL                                  | Accepted                 |      | Input design                  |
+| DECISION-004 | FastAPI Backend Instead of Streamlit-Only Application                              | Replaced                 |      | Replaced by DECISION-016      |
+| DECISION-005 | Browser Print/Save as PDF Instead of Direct PDF Generation                         | Replaced                 |      | Replaced by DECISION-014      |
+| DECISION-006 | No AI Provider Fallback in MVP                                                     | Accepted                 |      | Gemini only                   |
+| DECISION-007 | AI Output Must Be JSON Validated Before Rendering                                  | Accepted                 |      | Reliability                   |
+| DECISION-008 | Poor Fit Stops the Tailoring Workflow                                              | Accepted                 |      | No MVP override               |
+| DECISION-009 | AI-Assisted Development Workflow and Product Ownership Focus                       | Accepted                 |      | Portfolio strategy            |
+| DECISION-010 | Separate CV Optimization, Company Research, Interview Prep and Revision Workflows  | Accepted                 |      | Final AI workflow             |
+| DECISION-011 | CV-First Inline Review and Section-Level Control                                   | Accepted and Implemented |      | Human-in-the-loop UX          |
+| DECISION-012 | Complete CV Optimization Before Supporting Features                               | Accepted                 |      | Delivery sequence             |
+| DECISION-013 | Firestore Persistence for Company Research and Application Results                  | Accepted                 |      | Persistence                   |
+| DECISION-014 | Direct PDF Generation for Accepted CVs                                             | Accepted                 |      | Export                        |
+| DECISION-015 | CV-First Interface and Inline Change Review Direction                              | Accepted                 |      | Implemented through 011       |
+| DECISION-016 | Streamlit Calls the Service Layer Directly in V1                                   | Accepted                 |      | Final runtime architecture    |
+| DECISION-017 | Docker Compose Home-Server Deployment with Nginx                                   | Accepted                 |      | Deployment                    |
+| DECISION-018 | Defer Manual Company Research Retry to V2                                          | Accepted                 |      | Known V1 limitation           |

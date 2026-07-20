@@ -61,20 +61,30 @@ The product should become a practical everyday tool for job seekers.
 
 - role fit assessment
 - explanation of the fit assessment
-- optimized web version of the CV when the fit is sufficient
+- optimized CV when the fit is sufficient
 - gap analysis and preparation recommendations
 - company background
-- interview preparation material
-- likely interview questions with two or three suggested answers
+- on-demand interview preparation material
+- likely interview questions with answer directions
 - saved structured application result
 - directly generated PDF version of the accepted CV
 
-## V2 — Expanded Input and Export
+V1 also includes:
+
+- inline human review of AI-suggested CV changes
+- Firestore persistence
+- controlled validation and failure handling
+- Docker Compose deployment for a local-network portfolio demo
+- bookmarkable `/sale` and `/svetlana` routes
+
+## V2 — Expanded Input
 
 ### Input
 
 - uploaded PDF or Word CV
-- pasted job ad text
+- automatic CV parsing
+- job ad URL processing
+- pasted job ad fallback
 - company name
 - optional company website URL
 
@@ -87,13 +97,19 @@ The product should become a practical everyday tool for job seekers.
 - interview preparation material
 - additional export options or CV templates
 
-## V3 — Job Discovery
+V2 may also add manual Company Research retry and broader user-managed profile support.
 
-V3 may add integration with an available Dutch job-market database or API.
+## V3 — Agentic Job Discovery
 
-The system would periodically identify suitable vacancies based on actual candidate fit rather than only matching job titles.
+V3 may add an agentic workflow that periodically identifies suitable vacancies based on actual candidate fit rather than only matching job titles.
 
-The user could receive a list of relevant positions together with application guidance and prepared materials.
+Possible inputs may include:
+
+- job-board APIs
+- job-alert emails
+- scheduled search criteria
+
+The user could receive relevant positions together with fit analysis, application guidance and prepared materials.
 
 ---
 
@@ -119,40 +135,46 @@ No additional user groups are currently planned for the MVP.
 
 # User Journey
 
-1. The user finds a job ad they are considering.
-2. The user opens the application.
-3. The application loads and displays the predefined CV profile as the primary view.
-4. The user opens the optimization form from the side menu.
-5. The user selects an existing company from the dropdown.
-6. If the company does not exist, the user enters a new company in the format `Company Name - ISO2 Country Code`.
-7. The user pastes the full job ad text.
-8. The user starts the workflow.
-9. The system evaluates the candidate’s fit for the role.
-10. If the fit is poor, the workflow stops and returns:
+1. The user opens the application.
+2. The application loads and displays the selected predefined CV profile as the primary view.
+3. The user opens the optimization form.
+4. The user selects an existing company from stored records.
+5. If the company does not exist, the user enters a new company in the format `Company Name - ISO2 Country Code`.
+6. The user pastes the full job ad text.
+7. The user starts the workflow.
+8. The system evaluates the candidate’s fit for the role.
+9. If the fit is poor, the workflow stops and returns:
    - an explanation
    - the main missing requirements
    - recommendations for improving future eligibility
 
-11. If the fit is sufficient, the system generates:
+10. If the fit is sufficient, the system generates:
     - an optimized CV
     - a fit explanation
     - gap analysis
-    - company research
-    - interview preparation material
 
-12. The validated application result is stored for future reuse.
-13. The user reviews the complete result.
-14. The planned review direction is to show AI-suggested changes inline against the current CV before the final CV is accepted.
-15. The user may request revision of editable CV content by adding comments.
-16. The system revises only the selected content.
-17. After acceptance, the user downloads a directly generated PDF version of the CV.
-18. The user applies for the job and uses the preparation material before the interview.
+11. Company Research is generated or reused as a separate supporting workflow.
+12. The validated application result is stored in Firestore as a draft.
+13. The user reviews AI-suggested CV changes inline.
+14. For each supported item, the user may:
+    - accept the AI suggestion
+    - keep the original content
+    - request a targeted revision
+
+15. The system revises only the selected content.
+16. The user saves all review decisions.
+17. The user accepts the final CV.
+18. After acceptance, the user downloads a directly generated PDF version of the CV.
+19. Interview Prep can be generated on demand using the job ad, CV and available company context.
+20. The user may reopen saved applications from Firestore.
+
+Company Research or Interview Prep failure must not delete or invalidate an already valid CV result.
 
 ---
 
 # In Scope
 
-The MVP is expected to support the following capabilities.
+The MVP supports the following capabilities.
 
 ## Data Input
 
@@ -198,6 +220,8 @@ When the fit is sufficient, the AI may improve:
 
 The AI may highlight responsibilities or skills that were a smaller part of a previous role when they are particularly relevant to the target position.
 
+The original CV remains the factual source of truth.
+
 The AI must not invent:
 
 - employers
@@ -237,11 +261,17 @@ The report should cover, where information is available:
 - customers or customer types
 - competitors
 - important recent news
-- general Glassdoor-related themes or publicly available employee sentiment
+- general employee-sentiment themes where reliable public information is available
 
 If reliable information is not available, the system should clearly indicate the limitation instead of inventing details.
 
+Company Research is stored separately from applications and may be reused when a valid fresh record already exists for the same company.
+
+V1 does not include a manual Company Research retry button after a failed attempt.
+
 ## Interview Preparation
+
+Interview Prep is generated on demand after the CV has been accepted.
 
 The system generates approximately 10–15 likely interview questions.
 
@@ -256,45 +286,55 @@ Questions should cover a range of topics, including:
 - situational and behavioral questions
 - topics the candidate should review before the interview
 
-Each question should include two or three suggested answer directions that the user may select, combine or adapt.
+Each question should include answer directions, relevant evidence from the candidate’s background and preparation guidance.
+
+The workflow also generates questions the candidate may ask the interviewer.
+
+Interview Prep may still run without Company Research, but the result may be less company-specific.
 
 ## User Review and Revision
 
-The complete result is shown to the user before export.
+The result is shown to the user before export.
 
-The planned review direction is a CV-first interface: the user sees the current CV and AI-suggested changes inline before accepting the final result.
+The user sees the current CV and AI-suggested changes inline before accepting the final result.
 
-The user may request changes for editable CV content, including summary text, responsibilities, key achievements and other supported editable elements.
+The user may:
 
-A follow-up AI request should revise only the selected content and should not regenerate the complete result.
+- accept the suggestion
+- keep the original content
+- request a targeted revision
+
+A follow-up AI request revises only the selected content and does not regenerate the complete result.
+
+The CV cannot be accepted until all review decisions are resolved and saved.
 
 ## Data Storage and Reuse
 
 The MVP stores validated structured data in Firebase Firestore.
 
-Two types of records are stored:
+Two main record types are stored:
 
-- reusable company research
-- complete application results
+- reusable company research in the `companies` collection
+- application results in the `applications` collection
 
-Company research may be reused when the user applies for another position at the same company.
-
-A complete application result may only be reused when the relevant input and version metadata match, including:
-
-- selected CV profile
-- job ad content or hash
-- schema version
-- prompt version
+Company research may be reused when the user applies for another position at the same company and the existing record is still valid.
 
 Each application record may contain:
 
+- application ID
+- profile ID
+- company key
 - fit assessment
 - tailored CV JSON
 - gap analysis
-- company reference
+- company reference or embedded summary
 - interview preparation
-- creation timestamp
+- application status
+- supporting workflow statuses
+- creation and update timestamps
 - relevant version metadata
+
+The application status moves from `draft` to `accepted` after the review is completed.
 
 The MVP does not include user accounts or a full history-management dashboard.
 
@@ -302,7 +342,25 @@ The MVP does not include user accounts or a full history-management dashboard.
 
 The application generates a downloadable PDF version of the accepted CV from the stored structured CV data.
 
+PDF export is unavailable while the application remains in draft status.
+
 The current PDF is considered usable for V1, while final visual polish and template improvements may be handled later.
+
+## Deployment
+
+V1 includes a Docker Compose deployment for a repeatable portfolio demo.
+
+The deployment uses:
+
+- a Streamlit application container
+- an Nginx reverse-proxy container
+- mounted Firebase credentials
+- environment-based configuration
+- health checks and visible container logs
+
+The first deployment target is a user-owned home-server laptop accessible from the local network.
+
+Public cloud hosting, domain configuration and HTTPS are not part of V1.
 
 ## Basic Reliability
 
@@ -310,12 +368,14 @@ The MVP includes:
 
 - validation of required user input
 - structured AI output
-- validation of AI response structure
+- cleaning of raw AI responses
+- Pydantic and business validation
 - validation of stored data before reuse
 - safe failure when output is invalid
 - limited retry handling
-- basic workflow logging
+- workflow logging and timing
 - safe handling of storage failures
+- preservation of valid CV data when supporting workflows fail
 
 ---
 
@@ -329,7 +389,8 @@ The following capabilities are intentionally excluded from the MVP:
 - scraping LinkedIn job ads
 - importing a LinkedIn profile
 - direct application submission
-- PDF styling improvements and additional templates
+- manual Company Research retry
+- advanced PDF styling and additional templates
 - user accounts
 - user-facing application history dashboard
 - automated job alerts
@@ -337,6 +398,9 @@ The following capabilities are intentionally excluded from the MVP:
 - local AI model fallback
 - multiple CV templates
 - recruiter or enterprise features
+- public internet deployment
+- domain and HTTPS configuration
+- Kubernetes or complex cloud infrastructure
 
 ---
 
@@ -394,20 +458,21 @@ A poor-fit result only prevents the application from generating a tailored CV; i
 
 # Architecture Direction
 
-The MVP should use a simple and modular web architecture.
+The MVP uses a simple and modular web architecture.
 
-The architecture should support:
+The architecture includes:
 
-- a clear separation between frontend and backend responsibilities
-- structured CV data
-- structured AI output
-- validation before rendering
-- reuse of existing data when applicable
-- safe failure handling
-- future use of the backend as an independent API service
-- extension without redesigning the complete system
+- Streamlit as the user interface
+- a service layer for workflow orchestration and business rules
+- separate AI workflows
+- structured CV and AI models
+- validation before rendering and persistence
+- Firebase Firestore persistence
+- direct PDF generation
+- Docker Compose deployment with Nginx
+- FastAPI retained as an optional API entry point, but not required by the final Streamlit flow
 
-The MVP should remain simple enough to develop, test and demonstrate reliably.
+The architecture should remain simple enough to develop, test and demonstrate reliably.
 
 ---
 
@@ -433,7 +498,9 @@ The AI must not:
 
 AI output must be structured and validated before it is shown as a final result or stored for reuse.
 
-If the AI workflow fails repeatedly, processing stops and the user receives a clear error message.
+If an AI workflow fails repeatedly, that workflow stops and the user receives a controlled error message.
+
+A supporting-workflow failure must not delete an already valid CV result.
 
 ---
 
@@ -449,17 +516,21 @@ The MVP is considered complete when:
 - a poor-fit result still provides useful gap and preparation recommendations
 - a suitable role produces an optimized CV based only on available facts
 - protected CV fields remain unchanged
-- company research is generated or clearly marked as limited
-- stored company research can be reused for another application to the same company
-- a complete application result is reused only for an exact compatible input and version match
-- validated application results and tailored CV JSON versions are stored
-- interview questions and suggested answers are generated
-- the user can request revision of a specific section
-- only the selected section is revised
+- company research is generated, reused or clearly marked as limited
+- validated application results and tailored CV data are stored
+- the user can review suggestions inline
+- the user can accept suggestions, keep original content or request targeted revisions
+- only the selected content is revised
+- the application cannot be accepted until review decisions are resolved
+- interview preparation can be generated on demand
 - AI output is validated before rendering
 - stored data is validated before reuse
 - invalid output fails safely
+- supporting-workflow failure does not remove a valid CV
 - the accepted CV can be downloaded as a directly generated PDF
+- Docker Compose starts the portfolio demo
+- `/sale` and `/svetlana` open the correct candidate profiles
+- Firestore data remains available after container restart
 - the complete main workflow can be demonstrated without editing the code
 
 ---
@@ -487,16 +558,19 @@ Potential future expansion includes:
 - PDF and Word CV upload
 - automatic CV parsing
 - LinkedIn profile import if technically and legally possible
-- job ad URL processing
-- direct PDF generation
+- job ad URL processing with pasted-text fallback
+- manual Company Research retry
 - user accounts
 - user-facing application history dashboard
 - side-by-side CV version comparison
-- job board API integration
+- job-board API integration
 - scheduled fit-based job discovery
-- email notifications
+- job-alert email processing
+- candidate notifications
 - optional local model or privacy mode
 - multiple CV templates
+- public hosting with domain and HTTPS
+- stronger agent observability and quality checks
 
 ---
 

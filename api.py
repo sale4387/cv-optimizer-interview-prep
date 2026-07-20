@@ -14,7 +14,6 @@ from error_handlers import (
     validation_error_handler,
 )
 
-from slowapi.errors import RateLimitExceeded
 from rate_limit import limiter
 from config import settings
 from logger import logger
@@ -73,15 +72,4 @@ def optimize_cv(
         "status": "accepted",
         "profile_id": payload.profile_id,
         "company_name": payload.company_name,
-    }
-def optimize_cv(request: CVOptimizationRequest) -> dict[str, str]:
-    logger.info(
-        "Optimize endpoint requested for profile: %s",
-        request.profile_id,
-    )
-
-    return {
-        "status": "accepted",
-        "profile_id": request.profile_id,
-        "company_name": request.company_name,
     }

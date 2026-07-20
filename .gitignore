@@ -1,12 +1,25 @@
-.venv/
-.env
+# Python
 __pycache__/
-*.pyc
-ffmpeg/
-*.exe
-.DS_Store
+*.py[cod]
+.pytest_cache/
+
+# Virtual environment and local editor files
+.venv/
 .vscode/
+.DS_Store
+
+# Environment variables and credentials
+.env
 secrets/
+firebase-adminsdk*.json
+serviceAccount*.json
+service_account*.json
+token.json
+
+# Generated and temporary project artifacts
+outputs/
+backups/
+*.bak
 test_cases_results_log.txt
 tasks_working_doc.txt
 job_add_test.txt
